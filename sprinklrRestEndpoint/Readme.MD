@@ -1,4 +1,4 @@
-# Sprinklr Integration Transformer
+# Sprinklr Integration REST Transformer
 
 This Transformer allows Cogngiy to be connected to a Sprinklr Twitter account
 
