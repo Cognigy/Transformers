@@ -32,8 +32,6 @@ createRestTransformer({
 		 * every Endpoint, and the example above needs to be adjusted
 		 * accordingly.
 		 */
-
-		console.log(JSON.stringify(request.body))
 		
 		//infinite loop prevention
 		if (request.body &&
@@ -53,8 +51,6 @@ createRestTransformer({
 			request.body.payload.senderProfile.channelType &&
 			request.body.payload.senderProfile.channelId &&
 			request.body.payload.messageId) {
-
-			console.log("payload is fine")
 
 			const userId = request.body.payload.sourceId.toString();
 			const senderProfile = request.body.payload.senderProfile;
@@ -82,7 +78,6 @@ createRestTransformer({
 				data
 			};
 		} else {
-			console.log("payload is missing data")
 			//Sprinklr Endpoint Check requirement
 			response.sendStatus(200);
 			return null;
@@ -235,12 +230,8 @@ createRestTransformer({
 
 		//send to sprinklr
 		try {
-			console.log("sending response")
-			console.log("request: " + JSON.stringify(requestBody))
 			const result = await httpRequest(requestBody); 
-			console.log(JSON.stringify(result))
 		} catch (error){
-			console.log("failed to send")
 			console.error(error)
 			//debug
 			return {"error":error, "request":requestBody}
