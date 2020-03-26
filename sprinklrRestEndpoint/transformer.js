@@ -7,6 +7,9 @@ const AUTH_TOKEN = "";
 
 const API_KEY = "";
 
+//enter the configured URL shortener here, otherwise set it to null
+const URL_SHORTENER = ""
+
 createRestTransformer({
 
 	/**
@@ -161,7 +164,8 @@ createRestTransformer({
 					},
 					"scheduleDate": 0,
 					"taxonomy": {
-						"campaignId": CAMPAIGN_ID
+						"campaignId": CAMPAIGN_ID,
+						"urlShortenerId": URL_SHORTENER
 					},
 					//prevent Twitter block
 					"allowDuplicateMessages" : true,
