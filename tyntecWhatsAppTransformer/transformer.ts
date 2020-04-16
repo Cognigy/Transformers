@@ -7,7 +7,7 @@ interface IWhatsAppMessageBase {
 interface IWhatsAppMediaMessage extends IWhatsAppMessageBase {
     contentType: 'media';
     media: {
-        type: 'image';
+        type: 'image' | 'audio' | 'video';
          url: string;
     }
 }
@@ -55,20 +55,35 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string): TWhat
         else if (processedOutput.data._cognigy._webchat != null) {
             let webchatContent = processedOutput.data._cognigy._webchat;
 
-            // check if an image is defined
-            if (webchatContent.message.attachment.type === 'image') {
-
-                let imageUrl: string = webchatContent.message.attachment.payload.url;
+            switch (webchatContent.message.attachment.type) {
+                case 'image':
+                    return {
+                        from: userId,
+                        contentType: "media",
+                        media: {
+                            type: "image",
+                            url: webchatContent.message.attachment.payload.url
+                        }
+                    }
+                case 'audio':
+                    return {
+                        from: userId,
+                        contentType: "media",
+                        media: {
+                            type: "audio",
+                            url: webchatContent.message.attachment.payload.url
+                        }
+                    }
+                case 'video':
                 return {
                     from: userId,
                     contentType: "media",
                     media: {
-                        type: "image",
-                        url: imageUrl
+                        type: "video",
+                        url: webchatContent.message.attachment.payload.url
                     }
                 }
             }
-
         }
 }
 
