@@ -25,21 +25,89 @@ interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
             policy: string;
             code: 'en' | 'de';
         };
-        components: IWhatsAppTemplateComponent[];
+        components: TWhatsAppTemplateComponent[];
     };
 }
 
-interface IWhatsAppTemplateComponent {
-    type: 'body' | string;
-    parameters: IWhatsAppTemplateComponentParameter[];
+type TWhatsAppTemplateComponent = IWhatsAppTemplateHeaderComponent | IWhatsAppTemplateBodyComponent | IWhatsAppTemplateButtonComponent;
+
+interface IWhatsAppTemplateHeaderComponent {
+    type: 'header';
+    parameters: (IWhatsAppTemplateComponentTextParameter)[];
 }
 
-interface IWhatsAppTemplateComponentParameter {
-    type: 'text' | string;
+interface IWhatsAppTemplateBodyComponent {
+    type: 'body';
+    parameters: (IWhatsAppTemplateComponentTextParameter)[];
+}
+
+interface IWhatsAppTemplateButtonComponent {
+    type: 'button';
+    subType: 'quick_reply';
+    index: number;
+    parameters: IWhatsAppTemplateButtonComponentParameter[];
+}
+
+interface IWhatsAppTemplateButtonComponentParameter {
+    type: 'payload';
+    payload: string;
+}
+
+interface IWhatsAppTemplateComponentTextParameter {
+    type: 'text';
     text: string;
 }
 
 type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage;
+
+/**
+ * Webchat Interface
+ */
+
+interface IWebchatQuickReply {
+    title: string;
+    payload: string;
+}
+
+const createWhatsAppQuickReplies = (text: string, quickReplies: IWebchatQuickReply[]): (IWhatsAppTemplateButtonComponent | IWhatsAppTemplateBodyComponent)[] => {
+
+    let whatsAppQuickReplies: (IWhatsAppTemplateButtonComponent | IWhatsAppTemplateBodyComponent)[] = [];
+
+    // insert the quick reply header text  
+    whatsAppQuickReplies.push(
+        {
+            type: 'body',
+            parameters: [
+                {
+                    text: text,
+                    type: 'text'
+                }
+            ]
+        },
+    )
+
+    for (let i = 0; i < 3; i++) {
+        try {
+            whatsAppQuickReplies.push(
+                {
+                    index: i,
+                    type: 'button',
+                    subType: 'quick_reply',
+                    parameters: [
+                        {
+                            type: 'payload',
+                            payload: quickReplies[i].payload
+                        }
+                    ]
+                }
+            )
+        } catch (error) {
+            // there is no second or third quick reply
+        }
+    }
+
+    return whatsAppQuickReplies;
+}
 
 const convertWebchatContentToWhatsApp = (processedOutput, userId: string): TWhatsAppContent => {
             // check if default text was sent
@@ -55,33 +123,56 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string): TWhat
         else if (processedOutput.data._cognigy._webchat != null) {
             let webchatContent = processedOutput.data._cognigy._webchat;
 
-            switch (webchatContent.message.attachment.type) {
-                case 'image':
-                    return {
-                        from: userId,
-                        contentType: "media",
-                        media: {
-                            type: "image",
-                            url: webchatContent.message.attachment.payload.url
-                        }
-                    }
-                case 'audio':
-                    return {
-                        from: userId,
-                        contentType: "media",
-                        media: {
-                            type: "audio",
-                            url: webchatContent.message.attachment.payload.url
-                        }
-                    }
-                case 'video':
+            // look for quick replies
+            if (webchatContent.message.quick_replies != null) {
+                let text: string = webchatContent.message.text;
+                let quickReplies: IWebchatQuickReply[] = webchatContent.message.quick_replies;
+                
+                // IMPORTANT: Only three quick reply buttons can be displayed in WhatsApp
                 return {
                     from: userId,
-                    contentType: "media",
-                    media: {
-                        type: "video",
-                        url: webchatContent.message.attachment.payload.url
+                    contentType: 'template',
+                    template: {
+                        language: {
+                            code: 'en',
+                            policy: 'deterministic',
+                        },
+                        templateId: '',
+                        components: createWhatsAppQuickReplies(text, quickReplies)
                     }
+                }
+            }
+            
+            // look for media attachments
+            if (webchatContent.message.attachment != null) {
+                switch (webchatContent.message.attachment.type) {
+                    case 'image':
+                        return {
+                            from: userId,
+                            contentType: "media",
+                            media: {
+                                type: "image",
+                                url: webchatContent.message.attachment.payload.url
+                            }
+                        }
+                    case 'audio':
+                        return {
+                            from: userId,
+                            contentType: "media",
+                            media: {
+                                type: "audio",
+                                url: webchatContent.message.attachment.payload.url
+                            }
+                        }
+                    case 'video':
+                        return {
+                            from: userId,
+                            contentType: "media",
+                            media: {
+                                type: "video",
+                                url: webchatContent.message.attachment.payload.url
+                            }
+                        }
                 }
             }
         }
