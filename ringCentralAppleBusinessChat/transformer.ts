@@ -93,9 +93,9 @@ interface IABCStructuredContentRichLink {
     type: 'rich_link';
     attachment_id: string;
     title: string;
-    subtitle: string;
+    subtitle?: string;
     url: string;
-    url_text: string;
+    url_text?: string;
 }
 
 interface IABCStructuredContentSection {
@@ -207,7 +207,7 @@ const createDatePicker = (): IABCStructuredContentDatePicker => {
             latitude: 48.874989,
             longitude: 2.345589,
             radius: 100,
-            title: "Dimelo"
+            title: "Title"
         },
         timeslots: [
             {
@@ -298,6 +298,23 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 
                 // check for gallery
                 } else if (message.attachment && message.attachment.payload && (message.attachment.payload.template_type === "generic")) {
+
+                    // check if there is only one gallery element
+                    if (message.attachment.payload.elements.length === 1) {
+                        
+                        // return rich link structured messasge
+                        return {
+                            body: '',
+                            structured_content: {
+                                title: message.attachment.payload.elements[0].title,
+                                type: 'rich_link',
+                                attachment_id: '5e5fc9f1dbddbb4dd892c198',
+                                url: message.attachment.payload.elements[0].url
+                            }
+                        }
+                    }
+
+                    // else return mapped gallery for ABC
                     return {
                         body: 'Please make a selection',
                         structured_content: {
