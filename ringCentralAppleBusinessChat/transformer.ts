@@ -10,12 +10,19 @@ const ATTACHMENT_ID = "5e5e5fe1dbddbb73d01d9c80";
  */
 const LOCALIZATION = {
 	SELECT: {
-		SUBTITLE: 'Make a selection:'
+		SUBTITLE: 'Make a selection:',
+		BODY: 'Please make a selection'
 	},
 	RICH_LINK: {
 		TITLE: 'Website:',
 		SUBTITLE: 'More info',
 		URL_TEXT: 'Link'
+	},
+	DATEPICKER: {
+		BODY: 'https://cognigy.visualstudio.com/Cognigy.AI/_git/tmp-extensions',
+		PICKER: {
+			LOCATION_TITLE: 'Title'
+		}
 	}
 }
 
@@ -232,7 +239,7 @@ const createDatePicker = (): IABCStructuredContentDatePicker => {
 			latitude: 48.874989,
 			longitude: 2.345589,
 			radius: 100,
-			title: "Title"
+			title: LOCALIZATION.DATEPICKER.PICKER.LOCATION_TITLE
 		},
 		timeslots: [
 			{
@@ -341,7 +348,7 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 
 					// else return mapped gallery for ABC
 					return {
-						body: 'Please make a selection',
+						body: LOCALIZATION.SELECT.BODY,
 						structured_content: {
 							type: "select",
 							subtitle: LOCALIZATION.SELECT.SUBTITLE,
@@ -368,7 +375,7 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 		 */
 
 		return {
-			body: 'Pick Your Date',
+			body: LOCALIZATION.DATEPICKER.BODY,
 			structured_content: createDatePicker()
 		}
 
