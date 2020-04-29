@@ -39,9 +39,10 @@ createSocketTransformer({
 		
 		let stringObject = JSON.stringify(processedOutput);
 		for(let i = 0; i<stringsToTranslate.length; i++){
-			let inp = stringsToTranslate[i];
-			let out = translatedStrings[i].translations[0].text;
-			stringObject = stringObject.replace(inp, out);
+			const inp = stringsToTranslate[i];
+			const out = translatedStrings[i].translations[0].text;
+			const rxp = new Regexp(inp, "g");
+			stringObject = stringObject.replace(rxp, out);
 		}
 		return JSON.parse(stringObject);
 	}
