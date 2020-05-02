@@ -25,34 +25,38 @@ createSocketTransformer({
 	},
 
 	handleOutput: async ({ processedOutput, userId, sessionId }) => {
-		if (processedOutput.text) {
-			processedOutput.text.split('\n').forEach((splitter) => {
-				stringsToTranslate.push(splitter);
-			});
-		}
-		if (processedOutput.data) {
-			const moreStringsToTranslate = findStringsInObject(processedOutput.data);
-			if (moreStringsToTranslate && Array.isArray(moreStringsToTranslate) && moreStringsToTranslate.length > 0) {
-				moreStringsToTranslate.forEach((ms) => {
-					ms.split('\n').forEach((splitter) => {
-						stringsToTranslate.push(splitter);
-					});
+		const sstorage = await getSessionStorage(userId, sessionId);
+
+		if (sstorage.lang !== "en") {
+			if (processedOutput.text) {
+				processedOutput.text.split('\n').forEach((splitter) => {
+					stringsToTranslate.push(splitter);
 				});
 			}
-		}
-		const translateObject = [];
-		stringsToTranslate.forEach((s) => {
-			translateObject.push({ "text": s });
-		})
-		const translatedStrings = await translate(translateObject, CONFIG.out);
-		let stringObject = JSON.stringify(processedOutput);
-		for(let i = 0; i<stringsToTranslate.length; i++){
-			const inp = stringsToTranslate[i];
-			const out = translatedStrings[i].translations[0].text;
-			const regex = new RegExp(inp, "g");
-			stringObject = stringObject.replace(regex, out);
-		}
-		return JSON.parse(stringObject);
+			if (processedOutput.data) {
+				const moreStringsToTranslate = findStringsInObject(processedOutput.data);
+				if (moreStringsToTranslate && Array.isArray(moreStringsToTranslate) && moreStringsToTranslate.length > 0) {
+					moreStringsToTranslate.forEach((ms) => {
+						ms.split('\n').forEach((splitter) => {
+							stringsToTranslate.push(splitter);
+						});
+					});
+				}
+			}
+			const translateObject = [];
+			stringsToTranslate.forEach((s) => {
+				translateObject.push({ "text": s });
+			})
+			const translatedStrings = await translate(translateObject, sstorage.lang);
+			let stringObject = JSON.stringify(processedOutput);
+			for(let i = 0; i<stringsToTranslate.length; i++){
+				const inp = stringsToTranslate[i];
+				const out = translatedStrings[i].translations[0].text;
+				const regex = new RegExp(inp, "g");
+				stringObject = stringObject.replace(regex, out);
+			}
+			return JSON.parse(stringObject);
+		} else return processedOutput;
 	},
 });
 
