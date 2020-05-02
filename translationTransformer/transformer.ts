@@ -25,7 +25,7 @@ createSocketTransformer({
 
 	handleOutput: async ({ processedOutput, userId, sessionId }) => {
 		if (processedOutput.text) {
-			processedOutput.text.split('\n').forEach((splitter) => {
+			processedOutput.text.split(/[\\\n"]+/).forEach((splitter) => {
 				stringsToTranslate.push(splitter);
 			});
 		}
@@ -33,7 +33,7 @@ createSocketTransformer({
 			const moreStringsToTranslate = findStringsInObject(processedOutput.data);
 			if (moreStringsToTranslate && Array.isArray(moreStringsToTranslate) && moreStringsToTranslate.length > 0) {
 				moreStringsToTranslate.forEach((ms) => {
-					ms.split('\n').forEach((splitter) => {
+					ms.split(/[\\\n"]+/).forEach((splitter) => {
 						stringsToTranslate.push(splitter);
 					});
 				});
