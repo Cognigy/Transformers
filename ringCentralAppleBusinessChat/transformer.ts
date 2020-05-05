@@ -1,9 +1,9 @@
 /*
 * Add the attachment id of your global image which should be used in the messages.
 * How to get an attachment id:
-* 1. ....
+*  - https://grokify.github.io/go-ringcentral-engage/#tag/Attachments
 */
-const ATTACHMENT_ID = "5e5e5fe1dbddbb73d01d9c80";
+const ATTACHMENT_ID = "";
 
 /**
  * Configure the text information globally in the LOCALIZATION object
@@ -19,7 +19,7 @@ const LOCALIZATION = {
 		URL_TEXT: 'Link'
 	},
 	DATEPICKER: {
-		BODY: 'https://cognigy.visualstudio.com/Cognigy.AI/_git/tmp-extensions',
+		BODY: 'Select a date',
 		PICKER: {
 			LOCATION_TITLE: 'Title'
 		}
@@ -107,7 +107,7 @@ type TWebchatContent = IWebchatTextContent | IWebchatQuickRepliesContent | IWebc
  */
 interface IABCContent {
 	body: string;
-	structured_content: IABCStructuredContentDatePicker | IABCStructuredContentSelections | IABCStructuredContentRichLink;
+	structured_content?: IABCStructuredContentDatePicker | IABCStructuredContentSelections | IABCStructuredContentRichLink;
 }
 
 interface IABCStructuredContentSelections {
@@ -163,7 +163,7 @@ interface IABCStructuredContentDatePicker {
 interface IABCStructuredContentDatePickerTimeSlot {
 	start_time: string,
 	identifier: string,
-	dulation: number
+	duration: number
 }
 
 /**
@@ -231,7 +231,31 @@ const createSections = (elements: IWebchatListElement[]): IABCStructuredContentS
 	return abcsections;
 }
 
-const createDatePicker = (): IABCStructuredContentDatePicker => {
+/**
+ * Create a date picker list view based on the cognigy list
+ * @param items webchat list items
+ */
+const createDatePickerTimeSlot = (items: IWebchatListElement[]): IABCStructuredContentDatePickerTimeSlot[] => {
+
+	let abcTimeSlots: IABCStructuredContentDatePickerTimeSlot[] = [];
+
+	for (let item of items) {
+		abcTimeSlots.push(
+			{
+				duration: 3600,
+				identifier: item.subtitle,
+				start_time: item.title
+			}
+		);
+	}
+	return abcTimeSlots;
+}
+
+/**
+ * Create a ABC time select view
+ */
+const createDatePicker = (listElements: IWebchatListElement[]): IABCStructuredContentDatePicker => {
+
 	return {
 		type: "time_select",
 		attachment_id: ATTACHMENT_ID,
@@ -241,50 +265,10 @@ const createDatePicker = (): IABCStructuredContentDatePicker => {
 			radius: 100,
 			title: LOCALIZATION.DATEPICKER.PICKER.LOCATION_TITLE
 		},
-		timeslots: [
-			{
-				start_time: "2020-03-10T09:45-07:00",
-				identifier: "Time Slot A",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-10T11:00-07:00",
-				identifier: "Time Slot B",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-11T11:00-07:00",
-				identifier: "Time Slot C",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-11T12:00-07:00",
-				identifier: "Time Slot D",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-11T13:00-07:00",
-				identifier: "Time Slot E",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-12T11:00-07:00",
-				identifier: "Time Slot C",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-12T12:00-07:00",
-				identifier: "Time Slot D",
-				dulation: 3600
-			},
-			{
-				start_time: "2020-03-14T13:00-07:00",
-				identifier: "Time Slot E",
-				dulation: 3600
-			}
-		]
+		timeslots: createDatePickerTimeSlot(listElements)
 	}
 }
+
 
 const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 	const { data } = output;
@@ -316,6 +300,16 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 				// check for list
 				if (message.attachment && message.attachment.type === "template" && (message.attachment.payload.template_type === "list")) {
 
+					/**
+					 * Use a SAY Node data message to call the 'datepicker'. Parallely, the same SAY Node has to provide the webchat tab with a list view.
+					 */
+					if (output.data.type === 'datepicker') {
+						return {
+							body: LOCALIZATION.DATEPICKER.BODY,
+							structured_content: createDatePicker(message.attachment.payload.elements)
+						}
+					}
+
 					return {
 						body: '',
 						structured_content: {
@@ -333,6 +327,10 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 
 					// check if there is only one gallery element
 					if (message.attachment.payload.elements.length === 1) {
+
+						/**
+						 * Use a single Gallery element in the SAY Node to render a rich link attachment, such as an image with link.
+						 */
 						
 						// return rich link structured messasge
 						return {
@@ -363,27 +361,10 @@ const convertWebchatContentToAppleBusinessChat = (output): IABCContent => {
 
 			}
 		}
-	// check for date picker
-	} else if (data._plugin && (data._plugin.type === "date-picker")) {
-
-		// log datepicker config
-		console.log(JSON.stringify(data._plugin))
-
-		/**
-		 * Prevent using datepicker here, because it would be a better solution if we just define a list of time slots in the flow.
-		 * Todo: Talk to Thijs
-		 */
-
-		return {
-			body: LOCALIZATION.DATEPICKER.BODY,
-			structured_content: createDatePicker()
-		}
-
 	// if there is no specific webchat channel content, return the default text
 	} else {
 		return {
-			body: output.text,
-			structured_content: null
+			body: output.text
 		}
 	}
 };
