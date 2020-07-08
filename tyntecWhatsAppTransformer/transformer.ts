@@ -10,6 +10,9 @@
  * }
 */
 
+const TYNTEC_API_KEY = ""; // Tyntec API Key
+const TYNTEC_NUMBER = ""; // WhatsApp phone number without prefix +
+
 
 
 /**
@@ -96,22 +99,36 @@ interface IWebchatQuickReply {
     payload: string;
 }
 
+interface ISessionStorageQuickReply {
+    index: number;
+    quickReply: IWebchatQuickReply;
+}
+
 const createWhatsAppQuickReplies = (quickReplies: IWebchatQuickReply[], sessionStorage: any): string => {
 
-    let quickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 1;
-
+    // get previous quick replies from session storage 
+    let sessionquickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 0;
+    let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
+    
+    // initialize empty text message bubble
     let whatsAppQuickReplyMessage: string = "";
 
     for (let quickReply of quickReplies) {
+        // store the index to the session storage for further quick replies
+        sessionquickReplyCurrentNumber += 1;
+        sessionQuickReplies.push({
+            index: sessionquickReplyCurrentNumber,
+            quickReply
+        })
         // add the quick reply to the text message bubble
         // Example: 1. first quick reply
-        whatsAppQuickReplyMessage += `\n${quickReplyCurrentNumber}. ${quickReply.title}`;
-        // store the index to the session storage for further quick replies
-        quickReplyCurrentNumber += 1;
+        whatsAppQuickReplyMessage += `\n${sessionquickReplyCurrentNumber}. ${quickReply.title}`;
+
     }
 
-    sessionStorage.quickReplyCurrentNumber = quickReplyCurrentNumber;
-
+    sessionStorage.quickReplyCurrentNumber = sessionquickReplyCurrentNumber;
+    sessionStorage.quickReplies = sessionQuickReplies;
+    
     return whatsAppQuickReplyMessage;
 }
 
@@ -126,7 +143,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessio
 
                 // check if default text was sent
                 if (stackItem.text != '' && !stackItem.data._cognigy && stackItem.text !== undefined) {
-                    
+                                        
                     // send default text
                     whatsAppContents.push({
                         from: userId,
@@ -248,9 +265,31 @@ createRestTransformer({
          */
         const userId = request.body.to;
         const sessionId = request.body.from;
-        const text = request.body.content.text;
+        let text = request.body.content.text;
         const data = request.body;
- 
+
+        let sessionStorage = await getSessionStorage(userId, sessionId);
+
+        if (text.toLowerCase().includes("delete storage")) {
+            delete sessionStorage.quickReplies;
+            delete sessionStorage.quickReplyCurrentNumber;
+            
+            console.log('removed storage');
+        }
+
+        // check if the user chose a quick reply by inserting a number that fits a stored reply
+        let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
+        
+        // compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
+        for (let sessionQuickReply of sessionQuickReplies) {
+            // the user can send the number or the title of a quick reply
+            if (text.toLowerCase().includes(sessionQuickReply.index) || text.toLowerCase().includes(sessionQuickReply.quickReply.title.toLowerCase())) {
+                text = sessionQuickReply.quickReply.payload;
+            }
+        }
+        
+
+
         return {
             userId,
             sessionId,
@@ -305,21 +344,42 @@ createRestTransformer({
 
         let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, userId, sessionStorage);
         
-        return await httpRequest({
-            uri: "https://api.tyntec.com/chat-api/v2/bulks",
-            method: "POST",
-            headers : {
-            'Content-Type':'application/json',
-            //'Accept':'application/json',
-            'apikey': '<Your-Tyntec-API-Key>'
-            },
-            body: {
-                "from": "<Your-Tyntec-Number>",
-                "to": sessionId,
-                "channel": "whatsapp",
-                "whatsapp": whatsapp
-            },
-            json: true
-        });    
+        // decide whether to use the bulks or messages API. If there is only one message, use the messages API.
+        if (whatsapp.length === 1) {
+            return await httpRequest({
+                        uri: "https://api.tyntec.com/chat-api/v2/messages",
+                        method: "POST",
+                        headers : {
+                        'Content-Type':'application/json',
+                        //'Accept':'application/json',
+                        'apikey': TYNTEC_API_KEY
+                        },
+                        body: {
+                            "to": sessionId,
+                            "channels": [
+                                "whatsapp"
+                            ],
+                            "whatsapp": whatsapp[0]
+                        },
+                        json: true
+                    });    
+        } else {
+            return await httpRequest({
+                        uri: "https://api.tyntec.com/chat-api/v2/bulks",
+                        method: "POST",
+                        headers : {
+                        'Content-Type':'application/json',
+                        //'Accept':'application/json',
+                        'apikey': TYNTEC_API_KEY
+                        },
+                        body: {
+                            "from": TYNTEC_NUMBER,
+                            "to": sessionId,
+                            "channel": "whatsapp",
+                            "whatsapp": whatsapp
+                        },
+                        json: true
+                    });    
+        } 
     }
 });
