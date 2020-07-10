@@ -1,91 +1,88 @@
 /**
- * README
+ * Configuration
  * 
- * Location Message:
- * This message shows a WhatsApp location with the given configuration. In order to use this, your SAY node has be configured as following:
- *  Text: <no text>
- *  Data: {
-		"location": {
-			"longitude": -122.747986,
-			"latitude": 37.989981,
-			"name": "Name of the location",
-			"address": "Shoreline Highway, CA 1, California"
-		}
-	}
- */
+ * Quick Replies:
+ * If you want to use quick replies inside WhatsApp, please provide the template Id in the data object of the SAY Node as the following:
+ * {
+ *   "whatsapp": {
+ *     "templateId": "12312"
+ *   }
+ * }
+*/
 
+const TYNTEC_API_KEY = ""; // Tyntec API Key
 
 /**
  * Tyntec WhatsApp interfaces
  */
 interface IWhatsAppMessageBase {
-	from: string;
+    from: string;
 }
 interface IWhatsAppMediaMessage extends IWhatsAppMessageBase {
-	contentType: 'media';
-	media: {
-		type: 'image' | 'audio' | 'video';
-		url: string;
-		caption: string;
-	}
+    contentType: 'media';
+    media: {
+        type: 'image' | 'audio' | 'video';
+        url: string;
+        caption: string;
+    }
 }
 
 interface IWhatsAppTextMessage extends IWhatsAppMessageBase {
-	contentType: 'text';
-	text: string;
+    contentType: 'text';
+    text: string;
 }
 
 interface IWhatsAppLocationMessage extends IWhatsAppMessageBase {
-	contentType: 'location',
-	location: IWhatsAppLocation
+    contentType: 'location',
+    location: IWhatsAppLocation
 }
 
 interface IWhatsAppLocation {
-	longitude: number;
-	latitude: number;
-	name: string;
-	address: string;
+    longitude: number;
+    latitude: number;
+    name: string;
+    address: string;
 }
 
 interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
-	contentType: 'template';
-	template: {
-		templateId: string;
-		language: {
-			policy: string;
-			code: 'en' | 'de';
-		};
-		components: TWhatsAppTemplateComponent[];
-	};
+    contentType: 'template';
+    template: {
+        templateId: string;
+        language: {
+            policy: string;
+            code: 'en' | 'de';
+        };
+        components: TWhatsAppTemplateComponent[];
+    };
 }
 
 type TWhatsAppTemplateComponent = IWhatsAppTemplateHeaderComponent | IWhatsAppTemplateBodyComponent | IWhatsAppTemplateButtonComponent;
 
 interface IWhatsAppTemplateHeaderComponent {
-	type: 'header';
-	parameters: (IWhatsAppTemplateComponentTextParameter)[];
+    type: 'header';
+    parameters: (IWhatsAppTemplateComponentTextParameter)[];
 }
 
 interface IWhatsAppTemplateBodyComponent {
-	type: 'body';
-	parameters: (IWhatsAppTemplateComponentTextParameter)[];
+    type: 'body';
+    parameters: (IWhatsAppTemplateComponentTextParameter)[];
 }
 
 interface IWhatsAppTemplateButtonComponent {
-	type: 'button';
-	subType: 'quick_reply';
-	index: number;
-	parameters: IWhatsAppTemplateButtonComponentParameter[];
+    type: 'button';
+    subType: 'quick_reply';
+    index: number;
+    parameters: IWhatsAppTemplateButtonComponentParameter[];
 }
 
 interface IWhatsAppTemplateButtonComponentParameter {
-	type: 'payload';
-	payload: string;
+    type: 'payload';
+    payload: string;
 }
 
 interface IWhatsAppTemplateComponentTextParameter {
-	type: 'text';
-	text: string;
+    type: 'text';
+    text: string;
 }
 
 type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage | IWhatsAppLocationMessage;
@@ -95,141 +92,175 @@ type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsApp
  */
 
 interface IWebchatQuickReply {
-	title: string;
-	payload: string;
+    title: string;
+    payload: string;
 }
 
-const createWhatsAppQuickReplies = (text: string, quickReplies: IWebchatQuickReply[]): (IWhatsAppTemplateButtonComponent | IWhatsAppTemplateBodyComponent)[] => {
-
-	let whatsAppQuickReplies: (IWhatsAppTemplateButtonComponent | IWhatsAppTemplateBodyComponent)[] = [];
-
-	// insert the quick reply header text  
-	whatsAppQuickReplies.push(
-		{
-			type: 'body',
-			parameters: [
-				{
-					text: text,
-					type: 'text'
-				}
-			]
-		},
-	)
-
-	for (let i = 0; i < 3; i++) {
-		try {
-			whatsAppQuickReplies.push(
-				{
-					index: i,
-					type: 'button',
-					subType: 'quick_reply',
-					parameters: [
-						{
-							type: 'payload',
-							payload: quickReplies[i].payload
-						}
-					]
-				}
-			)
-		} catch (error) {
-			// there is no second or third quick reply
-		}
-	}
-
-	return whatsAppQuickReplies;
+interface ISessionStorageQuickReply {
+    index: number;
+    quickReply: IWebchatQuickReply;
 }
 
-const convertWebchatContentToWhatsApp = (processedOutput, userId: string): TWhatsAppContent => {
-	// check if default text was sent
-	if (processedOutput.text != '' && !processedOutput.data._cognigy) {
+const createWhatsAppQuickReplies = (quickReplies: IWebchatQuickReply[], sessionStorage: any): string => {
 
-		// send default text
-		return {
-			from: userId,
-			contentType: "text",
-			text: processedOutput.text
-		}
-	}
+    // get previous quick replies from session storage 
+    let sessionquickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 0;
+    let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
 
-	// check for location message
-	else if (processedOutput.data.location) {
+    // initialize empty text message bubble
+    let whatsAppQuickReplyMessage: string = "";
 
-		const { longitude, latitude, name, address } = processedOutput.data.location;
+    for (let quickReply of quickReplies) {
+        // store the index to the session storage for further quick replies
+        sessionquickReplyCurrentNumber += 1;
+        sessionQuickReplies.push({
+            index: sessionquickReplyCurrentNumber,
+            quickReply
+        })
+        // add the quick reply to the text message bubble
+        // Example: 1. first quick reply
+        whatsAppQuickReplyMessage += `\n${sessionquickReplyCurrentNumber}. ${quickReply.title}`;
 
-		return {
-			from: userId,
-			contentType: "location",
-			location: {
-				longitude,
-				latitude,
-				name,
-				address
-			},
-		}
-	}
+    }
 
-	// check if webchat templates are defined
-	else if (processedOutput.data && processedOutput.data._cognigy._webchat) {
-		let webchatContent = processedOutput.data._cognigy._webchat;
+    sessionStorage.quickReplyCurrentNumber = sessionquickReplyCurrentNumber;
+    sessionStorage.quickReplies = sessionQuickReplies;
 
-		// look for media attachments
-		if (webchatContent.message.attachment != null) {
+    return whatsAppQuickReplyMessage;
+}
 
-			switch (webchatContent.message.attachment.type) {
-				case 'image':
-					return {
-						from: userId,
-						contentType: "media",
-						media: {
-							type: "image",
-							url: webchatContent.message.attachment.payload.url,
-							caption: processedOutput.text
-						}
+const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessionStorage: any): TWhatsAppContent[] => {
 
-					}
-				case 'audio':
-					return {
-						from: userId,
-						contentType: "media",
-						media: {
-							type: "audio",
-							url: webchatContent.message.attachment.payload.url,
-							caption: processedOutput.text
-						}
-					}
-				case 'video':
-					return {
-						from: userId,
-						contentType: "media",
-						media: {
-							type: "video",
-							url: webchatContent.message.attachment.payload.url,
-							caption: processedOutput.text
-						}
-					}
-			}
-		}
+    // create list for whatsapp content
+    let whatsAppContents: TWhatsAppContent[] = [];
 
-		// look for quick replies
-		else if (webchatContent.message.quick_replies != null) {
-			let text: string = webchatContent.message.text;
-			let quickReplies: IWebchatQuickReply[] = webchatContent.message.quick_replies;
+    // Loop through all provided Cogngiy bot messages
+    if (processedOutput.outputStack) {
+        for (let stackItem of processedOutput.outputStack) {
 
-			// IMPORTANT: Only three quick reply buttons can be displayed in WhatsApp
-			return {
-				from: userId,
-				contentType: 'template',
-				template: {
-					language: {
-						code: 'en',
-						policy: 'deterministic',
-					},
-					templateId: processedOutput.data.whatsapp || '',
-					components: createWhatsAppQuickReplies(text, quickReplies)
-				}
-			}
-		}
-	}
+            // check if default text was sent
+            if (stackItem.text != '' && !stackItem.data._cognigy && stackItem.text !== undefined) {
+
+                // send default text
+                whatsAppContents.push({
+                    from: userId,
+                    contentType: "text",
+                    text: stackItem.text
+                });
+            }
+
+            // check for location message
+            else if (stackItem.data.location) {
+
+                const { longitude, latitude, name, address } = stackItem.data.location;
+
+                whatsAppContents.push({
+                    from: userId,
+                    contentType: "location",
+                    location: {
+                        longitude,
+                        latitude,
+                        name,
+                        address
+                    },
+                });
+            }
+
+            // check if webchat templates are defined
+            else if (stackItem.data && stackItem.data._cognigy._webchat) {
+
+                let webchatContent = stackItem.data._cognigy._webchat;
+
+                // look for media attachments
+                if (webchatContent.message.attachment != null) {
+
+                    switch (webchatContent.message.attachment.type) {
+                        case 'image':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "image",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+
+                            });
+                            break;
+                        case 'audio':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "audio",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+                            });
+                            break;
+                        case 'video':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "video",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+                            });
+                            break;
+                        case 'template':
+                            // look for galleries
+                            const galleryElements = webchatContent.message.attachment.payload.elements;
+
+                            // create gallery message as message bubble
+                            for (let element of galleryElements) {
+
+                                // check if image is provided
+                                if (element.image_url === "" || element.image_url === null || element.image_url === undefined) {
+                                    throw new Error('Gallery item is missing image url');
+                                    return;
+                                }
+
+                                whatsAppContents.push({
+                                    from: userId,
+                                    contentType: "media",
+                                    media: {
+                                        type: "image",
+                                        url: element.image_url,
+                                        caption: `*${element.title}*\n\n${element.subtitle}`
+                                    }
+                                });
+                            }
+                            break;
+                    }
+                }
+
+                // look for quick replies
+                else if (webchatContent.message.quick_replies != null) {
+                    let text: string = webchatContent.message.text;
+                    let quickReplies: IWebchatQuickReply[] = webchatContent.message.quick_replies;
+
+                    // create quick reply title message
+                    whatsAppContents.push({
+                        from: userId,
+                        contentType: "text",
+                        text: text
+                    });
+
+                    // create quick replies message as message bubble
+                    whatsAppContents.push({
+                        from: userId,
+                        contentType: "text",
+                        text: createWhatsAppQuickReplies(quickReplies, sessionStorage)
+                    });
+                }
+            }
+        }
+    }
+
+    // return the list of whatsapp messages
+    return whatsAppContents;
 }
 
 createRestTransformer({
@@ -245,7 +276,13 @@ createRestTransformer({
      * @returns A valid userId, sessionId, as well as text and/or data,
      * which has been extracted from the request body.
      */
-	handleInput: async ({ endpoint, request, response }) => {
+    handleInput: async ({ endpoint, request, response }) => {
+
+        // handle accepted Tyntec WhatsApp messages
+        if (request.body.status) {
+            response.sendStatus(200);
+            return;
+        }
 
         /**
          * Extract the userId, sessionId and text
@@ -257,18 +294,33 @@ createRestTransformer({
          * every Endpoint, and the example above needs to be adjusted
          * accordingly.
          */
-		const userId = request.body.to;
-		const sessionId = request.body.from;
-		const text = request.body.content.text;
-		const data = request.body;
+        const userId = request.body.from;
+        const sessionId = request.body.to;
+        let text = request.body.content.text;
+        const data = request.body;
 
-		return {
-			userId,
-			sessionId,
-			text,
-			data
-		};
-	},
+        let sessionStorage = await getSessionStorage(userId, sessionId);
+
+        // check if the user chose a quick reply by inserting a number that fits a stored reply
+        let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
+
+        // compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
+        for (let sessionQuickReply of sessionQuickReplies) {
+            // the user can send the number or the title of a quick reply
+            if (text.toLowerCase().includes(sessionQuickReply.index) || text.toLowerCase().includes(sessionQuickReply.quickReply.title.toLowerCase())) {
+                text = sessionQuickReply.quickReply.payload;
+            }
+        }
+
+
+
+        return {
+            userId,
+            sessionId,
+            text,
+            data
+        };
+    },
 
     /**
      * This transformer is executed on every output from the Flow.
@@ -284,11 +336,11 @@ createRestTransformer({
      * 
      * @returns The output that will be formatted into the final response in the 'handleExecutionFinished' transformer.
      */
-	handleOutput: async ({ output, endpoint, userId, sessionId }) => {
-		return output;
-	},
+    handleOutput: async ({ output, endpoint, userId, sessionId }) => {
+        return output;
+    },
 
-	// TODO: Check if you can use mixed output - two different types of messages in one output.
+    // TODO: Check if you can use mixed output - two different types of messages in one output.
 
     /**
      * This transformer is executed when the Flow execution has finished.
@@ -310,26 +362,52 @@ createRestTransformer({
      * @returns An object that will be sent to the user, unchanged. It therefore has to have the
      * correct format according to the documentation of the specific Endpoint channel.
      */
-	handleExecutionFinished: async ({ processedOutput, outputs, userId, sessionId, endpoint, response }) => {
+    handleExecutionFinished: async ({ processedOutput, outputs, userId, sessionId, endpoint, response }) => {
 
-		let whatsapp: TWhatsAppContent = convertWebchatContentToWhatsApp(processedOutput, userId);
+        const sessionStorage = await getSessionStorage(userId, sessionId);
 
-		return await httpRequest({
-			uri: "https://api.tyntec.com/chat-api/v2/messages",
-			method: "POST",
-			headers: {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json',
-				'apikey': ''
-			},
-			body: {
-				"to": sessionId,
-				"channels": [
-					"whatsapp"
-				],
-				"whatsapp": whatsapp
-			},
-			json: true
-		});
-	}
+        // Delete Quick Replies for the next time
+        delete sessionStorage.quickReplies;
+        delete sessionStorage.quickReplyCurrentNumber;
+
+        let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, userId, sessionStorage);
+
+        // decide whether to use the bulks or messages API. If there is only one message, use the messages API.
+        if (whatsapp.length === 1) {
+            return await httpRequest({
+                uri: "https://api.tyntec.com/chat-api/v2/messages",
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    //'Accept':'application/json',
+                    'apikey': TYNTEC_API_KEY
+                },
+                body: {
+                    "to": userId,
+                    "channels": [
+                        "whatsapp"
+                    ],
+                    "whatsapp": whatsapp[0]
+                },
+                json: true
+            });
+        } else {
+            return await httpRequest({
+                uri: "https://api.tyntec.com/chat-api/v2/bulks",
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    //'Accept':'application/json',
+                    'apikey': TYNTEC_API_KEY
+                },
+                body: {
+                    "from": sessionId,
+                    "to": userId,
+                    "channel": "whatsapp",
+                    "whatsapp": whatsapp
+                },
+                json: true
+            });
+        }
+    }
 });
