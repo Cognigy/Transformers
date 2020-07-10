@@ -139,7 +139,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 		for (let stackItem of processedOutput.outputStack) {
 
 			// check if default text was sent
-			if (stackItem.text != '' && !stackItem.data._cognigy && stackItem.text !== undefined) {
+			if (stackItem.text && !(stackItem.data && stackItem.data._cognigy && (stackItem.data._cognigy._webchat || stackItem.data._cognigy._facebook))) {
 
 				// send default text
 				whatsAppContents.push({
@@ -167,9 +167,9 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 			}
 
 			// check if webchat templates are defined
-			else if (stackItem.data && stackItem.data._cognigy._webchat) {
+			else if (stackItem.data && (stackItem.data._cognigy._webchat || stackItem.data._cognigy._facebook)) {
 
-				let webchatContent = stackItem.data._cognigy._webchat;
+				let webchatContent = stackItem.data._cognigy._webchat || stackItem.data._cognigy._facebook;
 
 				// look for media attachments
 				if (webchatContent.message.attachment != null) {
@@ -369,7 +369,11 @@ createRestTransformer({
 		delete sessionStorage.quickReplyCurrentNumber;
 
 		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, sessionId, sessionStorage);
-
+        	if (!whatsapp.length) {
+            		console.error("Missing WhatsApp compatible channel output!");
+            		console.log(JSON.stringify(processedOutput))
+			return
+        	}
 		// decide whether to use the bulks or messages API. If there is only one message, use the messages API.
 		if (whatsapp.length === 1) {
 			return await httpRequest({
