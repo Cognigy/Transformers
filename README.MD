@@ -1,6 +1,12 @@
 # Introduction
 This repository contains multiple Transformer examples that shows how to work with Transformers. The repository contains the following examples:
 
+## Contents
+
+- [Releases](./RELEASES.md)
+- [Transformers](./transformers/)
+
+### Transformers - Short Description
 - **Custom Endpoint Transformer:**
   This Transformer shows how to build a custom integration with an Endpoint not supported natively by Cognigy.AI (Telegram).
 - **Handover Transformer:**
