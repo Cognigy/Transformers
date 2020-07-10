@@ -11,9 +11,6 @@
 */
 
 const TYNTEC_API_KEY = ""; // Tyntec API Key
-const TYNTEC_NUMBER = ""; // WhatsApp phone number without prefix +
-
-
 
 /**
  * Tyntec WhatsApp interfaces
@@ -109,7 +106,7 @@ const createWhatsAppQuickReplies = (quickReplies: IWebchatQuickReply[], sessionS
     // get previous quick replies from session storage 
     let sessionquickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 0;
     let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
-    
+
     // initialize empty text message bubble
     let whatsAppQuickReplyMessage: string = "";
 
@@ -128,118 +125,118 @@ const createWhatsAppQuickReplies = (quickReplies: IWebchatQuickReply[], sessionS
 
     sessionStorage.quickReplyCurrentNumber = sessionquickReplyCurrentNumber;
     sessionStorage.quickReplies = sessionQuickReplies;
-    
+
     return whatsAppQuickReplyMessage;
 }
 
 const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessionStorage: any): TWhatsAppContent[] => {
-    
-        // create list for whatsapp content
-        let whatsAppContents: TWhatsAppContent[] = [];
-        
-        // Loop through all provided Cogngiy bot messages
-        if (processedOutput.outputStack) {
-            for (let stackItem of processedOutput.outputStack) {
 
-                // check if default text was sent
-                if (stackItem.text != '' && !stackItem.data._cognigy && stackItem.text !== undefined) {
-                                        
-                    // send default text
+    // create list for whatsapp content
+    let whatsAppContents: TWhatsAppContent[] = [];
+
+    // Loop through all provided Cogngiy bot messages
+    if (processedOutput.outputStack) {
+        for (let stackItem of processedOutput.outputStack) {
+
+            // check if default text was sent
+            if (stackItem.text != '' && !stackItem.data._cognigy && stackItem.text !== undefined) {
+
+                // send default text
+                whatsAppContents.push({
+                    from: userId,
+                    contentType: "text",
+                    text: stackItem.text
+                });
+            }
+
+            // check for location message
+            else if (stackItem.data.location) {
+
+                const { longitude, latitude, name, address } = stackItem.data.location;
+
+                whatsAppContents.push({
+                    from: userId,
+                    contentType: "location",
+                    location: {
+                        longitude,
+                        latitude,
+                        name,
+                        address
+                    },
+                });
+            }
+
+            // check if webchat templates are defined
+            else if (stackItem.data && stackItem.data._cognigy._webchat) {
+                let webchatContent = stackItem.data._cognigy._webchat;
+
+                // look for media attachments
+                if (webchatContent.message.attachment != null) {
+
+                    switch (webchatContent.message.attachment.type) {
+                        case 'image':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "image",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+
+                            });
+                        case 'audio':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "audio",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+                            });
+                        case 'video':
+                            whatsAppContents.push({
+                                from: userId,
+                                contentType: "media",
+                                media: {
+                                    type: "video",
+                                    url: webchatContent.message.attachment.payload.url,
+                                    caption: stackItem.text
+                                }
+                            });
+                    }
+                }
+
+                // look for quick replies
+                else if (webchatContent.message.quick_replies != null) {
+                    let text: string = webchatContent.message.text;
+                    let quickReplies: IWebchatQuickReply[] = webchatContent.message.quick_replies;
+
+                    // create quick reply title message
                     whatsAppContents.push({
                         from: userId,
                         contentType: "text",
-                        text: stackItem.text
+                        text: text
                     });
-                }
-                
-                // check for location message
-                else if (stackItem.data.location) {
-                                
-                    const { longitude, latitude, name, address } = stackItem.data.location;
 
+                    // create quick replies message as message bubble
                     whatsAppContents.push({
                         from: userId,
-                        contentType: "location",
-                        location : {
-                            longitude,
-                            latitude,
-                            name,
-                            address
-                        },
+                        contentType: "text",
+                        text: createWhatsAppQuickReplies(quickReplies, sessionStorage)
                     });
-                }
-
-                // check if webchat templates are defined
-                else if (stackItem.data && stackItem.data._cognigy._webchat) {
-                    let webchatContent = stackItem.data._cognigy._webchat;
-                        
-                    // look for media attachments
-                    if (webchatContent.message.attachment != null) {
-
-                            switch (webchatContent.message.attachment.type) {
-                                case 'image':
-                                    whatsAppContents.push({
-                                        from: userId,
-                                        contentType: "media",
-                                        media: {
-                                            type: "image",
-                                            url: webchatContent.message.attachment.payload.url,
-                                            caption: stackItem.text
-                                        }
-
-                                    });
-                                case 'audio':
-                                    whatsAppContents.push({
-                                        from: userId,
-                                        contentType: "media",
-                                        media: {
-                                            type: "audio",
-                                            url: webchatContent.message.attachment.payload.url,
-                                            caption: stackItem.text
-                                        }
-                                    });
-                                case 'video':
-                                    whatsAppContents.push({
-                                        from: userId,
-                                        contentType: "media",
-                                        media: {
-                                            type: "video",
-                                            url: webchatContent.message.attachment.payload.url,
-                                            caption: stackItem.text
-                                        }
-                                    });
-                            }
-                        }
-
-                        // look for quick replies
-                        else if (webchatContent.message.quick_replies != null) {
-                            let text: string = webchatContent.message.text;
-                            let quickReplies: IWebchatQuickReply[] = webchatContent.message.quick_replies;
-                            
-                            // create quick reply title message
-                            whatsAppContents.push({
-                                from: userId,
-                                contentType: "text",
-                                text: text
-                            });
-
-                            // create quick replies message as message bubble
-                            whatsAppContents.push({
-                                from: userId,
-                                contentType: "text",
-                                text: createWhatsAppQuickReplies(quickReplies, sessionStorage)
-                            });
-                        }
                 }
             }
         }
-        
-        // return the list of whatsapp messages
-        return whatsAppContents;
+    }
+
+    // return the list of whatsapp messages
+    return whatsAppContents;
 }
 
 createRestTransformer({
- 
+
     /**
      * This transformer is executed when receiving a message
      * from the user, before executing the Flow.
@@ -252,7 +249,13 @@ createRestTransformer({
      * which has been extracted from the request body.
      */
     handleInput: async ({ endpoint, request, response }) => {
- 
+
+        // handle accepted Tyntec WhatsApp messages
+        if (request.body.status) {
+            response.sendStatus(200);
+            return;
+        }
+
         /**
          * Extract the userId, sessionId and text
          * from the request. Example:
@@ -263,23 +266,16 @@ createRestTransformer({
          * every Endpoint, and the example above needs to be adjusted
          * accordingly.
          */
-        const userId = request.body.to;
-        const sessionId = request.body.from;
+        const userId = request.body.from;
+        const sessionId = request.body.to;
         let text = request.body.content.text;
         const data = request.body;
 
         let sessionStorage = await getSessionStorage(userId, sessionId);
 
-        if (text.toLowerCase().includes("delete storage")) {
-            delete sessionStorage.quickReplies;
-            delete sessionStorage.quickReplyCurrentNumber;
-            
-            console.log('removed storage');
-        }
-
         // check if the user chose a quick reply by inserting a number that fits a stored reply
         let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
-        
+
         // compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
         for (let sessionQuickReply of sessionQuickReplies) {
             // the user can send the number or the title of a quick reply
@@ -287,7 +283,7 @@ createRestTransformer({
                 text = sessionQuickReply.quickReply.payload;
             }
         }
-        
+
 
 
         return {
@@ -297,7 +293,7 @@ createRestTransformer({
             data
         };
     },
- 
+
     /**
      * This transformer is executed on every output from the Flow.
      * 
@@ -315,9 +311,9 @@ createRestTransformer({
     handleOutput: async ({ output, endpoint, userId, sessionId }) => {
         return output;
     },
-    
+
     // TODO: Check if you can use mixed output - two different types of messages in one output.
- 
+
     /**
      * This transformer is executed when the Flow execution has finished.
      * For REST based transformers, the final output will be sent to
@@ -339,47 +335,51 @@ createRestTransformer({
      * correct format according to the documentation of the specific Endpoint channel.
      */
     handleExecutionFinished: async ({ processedOutput, outputs, userId, sessionId, endpoint, response }) => {
-        
+
         const sessionStorage = await getSessionStorage(userId, sessionId);
 
+        // Delete Quick Replies for the next time
+        delete sessionStorage.quickReplies;
+        delete sessionStorage.quickReplyCurrentNumber;
+
         let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, userId, sessionStorage);
-        
+
         // decide whether to use the bulks or messages API. If there is only one message, use the messages API.
         if (whatsapp.length === 1) {
             return await httpRequest({
-                        uri: "https://api.tyntec.com/chat-api/v2/messages",
-                        method: "POST",
-                        headers : {
-                        'Content-Type':'application/json',
-                        //'Accept':'application/json',
-                        'apikey': TYNTEC_API_KEY
-                        },
-                        body: {
-                            "to": sessionId,
-                            "channels": [
-                                "whatsapp"
-                            ],
-                            "whatsapp": whatsapp[0]
-                        },
-                        json: true
-                    });    
+                uri: "https://api.tyntec.com/chat-api/v2/messages",
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    //'Accept':'application/json',
+                    'apikey': TYNTEC_API_KEY
+                },
+                body: {
+                    "to": userId,
+                    "channels": [
+                        "whatsapp"
+                    ],
+                    "whatsapp": whatsapp[0]
+                },
+                json: true
+            });
         } else {
             return await httpRequest({
-                        uri: "https://api.tyntec.com/chat-api/v2/bulks",
-                        method: "POST",
-                        headers : {
-                        'Content-Type':'application/json',
-                        //'Accept':'application/json',
-                        'apikey': TYNTEC_API_KEY
-                        },
-                        body: {
-                            "from": TYNTEC_NUMBER,
-                            "to": sessionId,
-                            "channel": "whatsapp",
-                            "whatsapp": whatsapp
-                        },
-                        json: true
-                    });    
-        } 
+                uri: "https://api.tyntec.com/chat-api/v2/bulks",
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    //'Accept':'application/json',
+                    'apikey': TYNTEC_API_KEY
+                },
+                body: {
+                    "from": sessionId,
+                    "to": userId,
+                    "channel": "whatsapp",
+                    "whatsapp": whatsapp
+                },
+                json: true
+            });
+        }
     }
 });
