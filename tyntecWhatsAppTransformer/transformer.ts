@@ -168,6 +168,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessio
 
             // check if webchat templates are defined
             else if (stackItem.data && stackItem.data._cognigy._webchat) {
+
                 let webchatContent = stackItem.data._cognigy._webchat;
 
                 // look for media attachments
@@ -185,6 +186,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessio
                                 }
 
                             });
+                            break;
                         case 'audio':
                             whatsAppContents.push({
                                 from: userId,
@@ -195,6 +197,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessio
                                     caption: stackItem.text
                                 }
                             });
+                            break;
                         case 'video':
                             whatsAppContents.push({
                                 from: userId,
@@ -205,6 +208,31 @@ const convertWebchatContentToWhatsApp = (processedOutput, userId: string, sessio
                                     caption: stackItem.text
                                 }
                             });
+                            break;
+                        case 'template':
+                            // look for galleries
+                            const galleryElements = webchatContent.message.attachment.payload.elements;
+
+                            // create gallery message as message bubble
+                            for (let element of galleryElements) {
+
+                                // check if image is provided
+                                if (element.image_url === "" || element.image_url === null || element.image_url === undefined) {
+                                    throw new Error('Gallery item is missing image url');
+                                    return;
+                                }
+
+                                whatsAppContents.push({
+                                    from: userId,
+                                    contentType: "media",
+                                    media: {
+                                        type: "image",
+                                        url: element.image_url,
+                                        caption: `*${element.title}*\n\n${element.subtitle}`
+                                    }
+                                });
+                            }
+                            break;
                     }
                 }
 
