@@ -5,12 +5,21 @@
  * If you want to use quick replies inside WhatsApp, please provide the template Id in the data object of the SAY Node as the following:
  * {
  *   "whatsapp": {
- *     "templateId": "12312"
+ *	 "templateId": "12312"
  *   }
  * }
 */
 
 const TYNTEC_API_KEY = ""; // Tyntec API Key
+
+//session timeout in seconds, new session gets generated afterwards
+//disable by setting to 0
+const SESSION_TIMEOUT = 1800
+
+const HIDE_USER_ID = true
+const HIDE_SESSION_ID = true
+//method used for hiding
+const HASH_ALGORITHM = "sha256"
 
 /**
  * Tyntec WhatsApp interfaces
@@ -294,15 +303,42 @@ createRestTransformer({
 		 * every Endpoint, and the example above needs to be adjusted
 		 * accordingly.
 		 */
-		const userId = request.body.from;
-		const sessionId = request.body.to;
+		 
+		//timestamp in unix seconds
+		const currentTime = moment(new Date()).unix()
+		const clearUserId = request.body.from
+		const clearSessionId = request.body.to
+		const rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
+		if (rawSessionStorage.timestamp) {
+			const difference = moment(currentTime).diff(moment(rawSessionStorage.timestamp))
+			//check for timeout if timeout is more than 0
+			if (SESSION_TIMEOUT && (difference > SESSION_TIMEOUT)){
+				rawSessionStorage.timestamp = currentTime
+			}
+		} else {
+			rawSessionStorage.timestamp = currentTime
+		}
+		//fill with clear values
+		let userId = clearUserId
+		let sessionId = JSON.stringify([clearSessionId,rawSessionStorage.timestamp])
+		//hash and obscure if hiding is true
+		if (HIDE_USER_ID){
+			userId = crypto.createHash(HASH_ALGORITHM).update(userId).digest("hex")
+		}
+		if (HIDE_SESSION_ID){
+			sessionId = crypto.createHash(HASH_ALGORITHM).update(sessionId).digest("hex")
+		}
+		//create output transformer translation storage
+		const processedSessionStorage = await getSessionStorage(userId, sessionId);
+		processedSessionStorage.clearUserId = clearUserId
+		processedSessionStorage.clearSessionId = clearSessionId
+		
 		let text = request.body.content.text;
 		const data = request.body;
 
-		let sessionStorage = await getSessionStorage(userId, sessionId);
-
 		// check if the user chose a quick reply by inserting a number that fits a stored reply
-		let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
+		let sessionQuickReplies: ISessionStorageQuickReply[] = processedSessionStorage.quickReplies || [];
 
 		// compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
 		for (let sessionQuickReply of sessionQuickReplies) {
@@ -311,6 +347,8 @@ createRestTransformer({
 				text = sessionQuickReply.quickReply.payload;
 			}
 		}
+
+
 
 		return {
 			userId,
@@ -361,19 +399,25 @@ createRestTransformer({
 	 * correct format according to the documentation of the specific Endpoint channel.
 	 */
 	handleExecutionFinished: async ({ processedOutput, outputs, userId, sessionId, endpoint, response }) => {
-
-		const sessionStorage = await getSessionStorage(userId, sessionId);
+		
+		//create output transformer translation storage
+		const processedSessionStorage = await getSessionStorage(userId, sessionId);
+		const clearUserId = processedSessionStorage.clearUserId
+		const clearSessionId = processedSessionStorage.clearSessionId
+		//if you need to access the original rawSessionStorage you now can
+		const rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
 
 		// Delete Quick Replies for the next time
-		delete sessionStorage.quickReplies;
-		delete sessionStorage.quickReplyCurrentNumber;
+		delete processedSessionStorage.quickReplies;
+		delete processedSessionStorage.quickReplyCurrentNumber;
 
-		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, sessionId, sessionStorage);
-        	if (!whatsapp.length) {
-            		console.error("Missing WhatsApp compatible channel output!");
-            		console.log(JSON.stringify(processedOutput))
-			return
-        	}
+		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, sessionId, processedSessionStorage);
+		if (!whatsapp.length) {	
+			console.error("Missing WhatsApp compatible channel output!");	
+			console.log(JSON.stringify(processedOutput))	
+			return	
+		}
+
 		// decide whether to use the bulks or messages API. If there is only one message, use the messages API.
 		if (whatsapp.length === 1) {
 			return await httpRequest({
@@ -385,7 +429,7 @@ createRestTransformer({
 					'apikey': TYNTEC_API_KEY
 				},
 				body: {
-					"to": userId,
+					"to": clearUserId,
 					"channels": [
 						"whatsapp"
 					],
@@ -403,8 +447,8 @@ createRestTransformer({
 					'apikey': TYNTEC_API_KEY
 				},
 				body: {
-					"from": sessionId,
-					"to": userId,
+					"from": clearSessionId,
+					"to": clearUserId,
 					"channel": "whatsapp",
 					"whatsapp": whatsapp
 				},
