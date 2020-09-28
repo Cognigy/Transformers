@@ -411,7 +411,7 @@ createRestTransformer({
 		delete processedSessionStorage.quickReplies;
 		delete processedSessionStorage.quickReplyCurrentNumber;
 
-		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, sessionId, processedSessionStorage);
+		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(processedOutput, clearSessionId, processedSessionStorage);
 		if (!whatsapp.length) {	
 			console.error("Missing WhatsApp compatible channel output!");	
 			console.log(JSON.stringify(processedOutput))	
