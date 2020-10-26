@@ -5,6 +5,7 @@ This repository contains multiple Transformer examples that shows how to work wi
 
 - [Releases](./RELEASES.md)
 - [Transformers](./transformers/)
+- [Concepts](./CONCEPTS.md)
 
 ## Overview
 
