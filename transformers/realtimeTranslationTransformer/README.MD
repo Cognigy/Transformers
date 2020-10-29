@@ -5,7 +5,7 @@ In this Transformer example, the user inputs will be translated from any input l
 
 # Example
 
-1[](./docs/realtimeTranslationExample.PNG)
+![](./docs/realtimeTranslationExample.PNG)
 
 # Usage
 Using this Transformer requires a Microsoft Translator subscription (https://docs.microsoft.com/en-us/azure/cognitive-services/translator), which can be created for free.
