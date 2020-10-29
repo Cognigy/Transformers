@@ -3,6 +3,10 @@ This Transformer example shows how to translate the inputs from the user as well
 
 In this Transformer example, the user inputs will be translated from any input language into English, and the English result will then be sent to the English Flow. On every Flow output, the English text in the output will be translated to the language that was used on the input before being sent to the user.
 
+# Example
+
+1[](./docs/realtimeTranslationExample.PNG)
+
 # Usage
 Using this Transformer requires a Microsoft Translator subscription (https://docs.microsoft.com/en-us/azure/cognitive-services/translator), which can be created for free.
 
