@@ -202,6 +202,19 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 								caption: `*${element.title}*\n\n${element.subtitle}`
 							}
 						});
+
+						console.log(element)
+						// check for buttons and show them as quick replies
+						if (element.buttons && element.buttons?.length !== 0) {
+							const galleryItemQuickReplies = element.buttons;
+
+							// create quick replies message as message bubble
+							whatsAppContents.push({
+								from: sessionId,
+								contentType: "text",
+								text: createWhatsAppQuickReplies(galleryItemQuickReplies, sessionStorage)
+							});
+						}
 					}
 				}
 
