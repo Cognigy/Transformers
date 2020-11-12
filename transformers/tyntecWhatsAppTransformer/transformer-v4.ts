@@ -148,7 +148,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 		for (let stackItem of processedOutput.outputStack) {
 
 			// check if default text was sent
-			if (stackItem.text && !(stackItem && !stackItem.data?._cognigy?._default)) {
+			if (stackItem.text && !stackItem.data?._cognigy?._default) {
 
 				// send default text
 				whatsAppContents.push({
@@ -204,7 +204,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 						});
 
 						// check for buttons and show them as quick replies
-						if (element.buttons?.length !== 0) {
+						if (element.buttons?.length) {
 							const galleryItemQuickReplies = element.buttons;
 
 							// create quick replies message as message bubble
