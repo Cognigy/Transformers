@@ -148,7 +148,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 		for (let stackItem of processedOutput.outputStack) {
 
 			// check if default text was sent
-			if (stackItem.text && !(stackItem.data && stackItem.data?._cognigy && (stackItem.data?._cognigy?._default))) {
+			if (stackItem.text && !(stackItem && !stackItem.data?._cognigy?._default)) {
 
 				// send default text
 				whatsAppContents.push({
@@ -176,12 +176,12 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 			}
 
 			// check if default templates are defined
-			else if (stackItem.data && (stackItem.data?._cognigy?._default)) {
+			else if (stackItem.data?._cognigy?._default) {
 
 				let defaultContent = stackItem.data._cognigy._default;
 
 				// look for gallery
-				if (defaultContent._gallery != null && defaultContent._gallery?.items) {
+				if (defaultContent._gallery?.items) {
 					// look for galleries
 					const galleryElements = defaultContent._gallery.items;
 
@@ -203,9 +203,8 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 							}
 						});
 
-						console.log(element)
 						// check for buttons and show them as quick replies
-						if (element.buttons && element.buttons?.length !== 0) {
+						if (element.buttons?.length !== 0) {
 							const galleryItemQuickReplies = element.buttons;
 
 							// create quick replies message as message bubble
@@ -239,7 +238,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 				}
 
 				// check for image
-				else if (defaultContent._image !== null && defaultContent._image?.type === "image") {
+				else if (defaultContent._image?.type === "image") {
 					whatsAppContents.push({
 						from: sessionId,
 						contentType: "media",
@@ -252,7 +251,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 				}
 
 				// check for audio
-				else if (defaultContent._audio !== null && defaultContent._audio?.type === "audio") {
+				else if (defaultContent._audio?.type === "audio") {
 					whatsAppContents.push({
 						from: sessionId,
 						contentType: "media",
@@ -265,7 +264,7 @@ const convertWebchatContentToWhatsApp = (processedOutput, sessionId: string, ses
 				}
 
 				// check for video
-				else if (defaultContent._video !== null && defaultContent._video?.type === "video") {
+				else if (defaultContent._video?.type === "video") {
 					whatsAppContents.push({
 						from: sessionId,
 						contentType: "media",
