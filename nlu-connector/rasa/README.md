@@ -13,7 +13,7 @@ We are using the `/model/parse` API endpoint, which means the Rasa server needs 
 If the Transformer runs into an issue during the Rasa HTTP request it will be visible in the Debug section of the Cognigy Logs.
 
 It will fill ```intent``` and ```intentScore``` in the Cognigy input object, which can be used like Cognigy values.
-The mapped Rasa entities are directly transferred into "rasa" slots and are different from default Cognigy Slots.
+The mapped Rasa entities are directly transferred into "rasa" slots and are different from default Cognigy Slots as can be seen below:
 
 <img src="./slots.png" width="30%"> 
 
