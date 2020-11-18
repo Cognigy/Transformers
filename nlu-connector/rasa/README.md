@@ -15,6 +15,6 @@ If the Transformer runs into an issue during the Rasa HTTP request it will be vi
 It will fill ```intent``` and ```intentScore``` in the Cognigy input object, which can be used like Cognigy values.
 The mapped Rasa entities are directly transferred into "rasa" slots and are different from default Cognigy Slots.
 
-<img src="./slots.png" width="30%">
+<img src="./slots.png" width="30%"> 
 
 The whole Rasa response is stored under ```data.rasa```, the initial ```data``` input is available with ```data.payload```.
