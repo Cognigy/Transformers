@@ -15,6 +15,19 @@ If the Transformer runs into an issue during the Rasa HTTP request it will be vi
 It will fill ```intent``` and ```intentScore``` in the Cognigy input object, which can be used like Cognigy values.
 The mapped Rasa entities are directly transferred into "rasa" slots and are different from default Cognigy Slots as can be seen below:
 
-<img src="./slots.png" width="30%"> 
+```
+  "slots": {
+    "rasa": [
+      {
+        "entity": "daytime",
+        "start": 5,
+        "end": 12,
+        "confidence_entity": 0.9902260899543762,
+        "value": "morning",
+        "extractor": "DIETClassifier"
+      }
+    ]
+  },
+```
 
 The whole Rasa response is stored under ```data.rasa```, the initial ```data``` input is available with ```data.payload```.
