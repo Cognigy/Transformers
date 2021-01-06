@@ -11,7 +11,7 @@ interface CPaaSBody {
 	AnsweredBy: string;
 	ApiVersion: string;
 	CallDuration: string;
-	CallSid: string;
+    CallSid: string;
 	CallerName: string;
 	Direction: string;
 	From: string;
@@ -27,6 +27,8 @@ interface CPaaSBody {
 
 const COGNIGY_BASE_URL = 'https://endpoint-trial.cognigy.ai/';
 const DEBUG_MODE = false;
+const MAX_CONF_PARTIES = 2;
+const DEFAULT_NUM_DIGITS = 1;
 
 createRestTransformer({
 
@@ -56,20 +58,21 @@ createRestTransformer({
 		const { body } = request as CPaaSRequest;
 		if (DEBUG_MODE) {
 			console.log('body='.concat(JSON.stringify(body)));
-		}
+		}	
 		const { From, To, CallSid, Digits, SpeechResult, SmsSid, Body } = body;
 		const userId = From;
 		const sessionId = CallSid ? CallSid : SmsSid;
-		let sessionStorage = await getSessionStorage(userId, sessionId);
+		let sessionStorage = await getSessionStorage(userId,sessionId);
 		sessionStorage.From = From;
 		sessionStorage.To = To;
 		sessionStorage.cpaas_channel = CallSid ? 'call' : 'sms';
-		let data = { "call": false, "sms": false, "phone": From };
+		sessionStorage.numberOfDigits = DEFAULT_NUM_DIGITS;
+		let data = {"call": false,"sms":false, "phone":From};
 		const menu = sessionStorage['menu'] ? sessionStorage['menu'] : {};
 		let text = '';
 		switch (sessionStorage.cpaas_channel) {
 			case 'call':
-				text = Digits ? (menu[Digits] ? menu[Digits] : 'default') : SpeechResult;
+				text = Digits ? (menu[Digits] ? menu[Digits] : Digits.replace(/\s+/g, '')) : SpeechResult;
 				data.call = true;
 				break;
 			case 'sms':
@@ -113,35 +116,55 @@ createRestTransformer({
 				console.log('payload='.concat(JSON.stringify(payload)));
 			}
 			const activities = payload._spoken.json.activities;
-			activities.forEach((activity) => {
+			activities.forEach( (activity) => {
 				switch (activity.name) {
 					case 'handover':
-						const dest = activity.activityParams.destination;
-						const cbUrl = (activity.activityParams.callbackUrl != null) ?
-							(' callbackUrl="' + activity.activityParams.callbackUrl + '"') : '';
-						let dial = '<Dial' + cbUrl + '>' + dest + '</Dial>';
-						output.text = (output.text != null) ? (output.text + dial) : dial;
-						sessionStorage.dial = true;
+						const handoverType = activity.activityParams.handoverType;
+						if (handoverType === "phone") {
+							const dest = activity.activityParams.destination;
+							const cbUrl = (activity.activityParams.callbackUrl != "") ?
+								(' callbackUrl="' + activity.activityParams.callbackUrl + '"') : '';
+							let dial = '<Dial' + cbUrl + '>' + dest + '</Dial>';
+							output.text = (output.text != null) ? (output.text + dial) : dial;
+							sessionStorage.dial = true;
+						} else if (handoverType === "sip") {
+							const cbUrl = (activity.activityParams.callbackUrl != "") ?
+								(' callbackUrl="' + activity.activityParams.callbackUrl + '"') : '';
+							const user = activity.activityParams.user;
+							const domain = activity.activityParams.domain;
+							const userName = activity.activityParams.connection.userName;
+							const password = activity.activityParams.connection.password;
+							let sipUrl = user.concat("@".concat(domain));
+							let dial ='<Dial' + cbUrl + '><Sip username="' + userName + '" password="' + password + '">' + sipUrl + ';transport=tcp</Sip></Dial>';
+							output.text = (output.text != null) ? (output.text + dial) : dial;
+							sessionStorage.dial = true;
+						}
 						break;
 					case 'prompt':
-						const menu = activity.activityParams.menu;
-						sessionStorage['menu'] = menu;
-						output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.text : ('<Say>' + activity.activityParams.text + '</Say>');
-						sessionStorage.dtmf = true;
+						const promptType = activity.activityParams.promptType;
+						if (promptType === 'menu') {
+							const menu = activity.activityParams.menu;
+							sessionStorage['menu'] = menu;
+							output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.menuText : ('<Say>' + activity.activityParams.menuText + '</Say>');
+							sessionStorage.numberOfDigits = DEFAULT_NUM_DIGITS;
+						} else if (promptType === 'number') {
+							sessionStorage.numberOfDigits = activity.activityParams.numberOfDigits;
+							output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.numberText : ('<Say>' + activity.activityParams.numberText + '</Say>');
+						}
 						break;
 					case 'hangup':
 						sessionStorage.hangup = true;
 						break;
 					case 'play':
 						if (sessionStorage.cpaas_channel == 'call') {
-							output.text += '<Play>' + (activity.activityParams.url ? activity.activityParams.url : "") + '</Play>';
+							output.text += activity.activityParams.url ? ('<Play>' + activity.activityParams.url + '</Play>') : '';
 						} else {
 							output.text = activity.activityParams.text;
 						}
 						break;
 					case 'record':
 						if (activity.activityParams.shouldRecord) {
-							sessionStorage.record = '<Record method="POST" finishOnKey="#" action="' + activity.activityParams.actionUrl + '"/>';
+							sessionStorage.record = '<Record method="POST" finishOnKey="#" action="'+activity.activityParams.actionUrl+'"/>';
 						} else {
 							sessionStorage.record = null;
 						}
@@ -150,16 +173,29 @@ createRestTransformer({
 						sessionStorage.conference = true;
 						let conferenceRoom = activity.activityParams.conferenceRoom ? activity.activityParams.conferenceRoom : "";
 						let confRoom = conferenceRoom.replace('+', '');
-						let conf = '<Dial><Conference startConferenceOnEnter="true" maxParticipants="2">' + confRoom + '</Conference></Dial>';
+						let conf = '<Dial><Conference startConferenceOnEnter="true" maxParticipants="'+MAX_CONF_PARTIES+'">' + confRoom + '</Conference></Dial>';
 						output.text = (output.text != null) ? (output.text + conf) : conf;
+						break;
+					case 'sms':
+						sessionStorage.sms = true;
+						const to = activity.activityParams.to ? activity.activityParams.to : '';
+						if (sessionStorage.cpaas_channel == 'call') {
+							output.data.sms = '<Sms from="{{To}}" to="' + to + '">' + activity.activityParams.text + '</Sms>';
+						} else {
+							output.text = activity.activityParams.text;
+						}
+						break;
+					case 'redirect':
+						sessionStorage.redirect = true;
+						output.text += activity.activityParams.url ? ('<Redirect>'+ activity.activityParams.url + '</Redirect>') : '';
 						break;
 					default:
 						break;
 				}
 			});
 		} else if (output.text != null && (sessionStorage.cpaas_channel == 'call')) {
-			output.text = '<Say>' + output.text + '</Say>';
-		}
+            output.text = '<Say>' + output.text + '</Say>';
+        }
 		return output;
 	},
 
@@ -208,27 +244,32 @@ createRestTransformer({
 const getCPaaSCallCmd = (sessionStorage, url, outputs) => {
 	let dial = sessionStorage.dial;
 	let hangup = sessionStorage.hangup;
-	let dtmf = sessionStorage.dtmf;
+	let numberOfDigits = sessionStorage.numberOfDigits;
 	let record = sessionStorage.record ? sessionStorage.record : '';
 	let conference = sessionStorage.conference;
-	let ctrlcmd = dial | hangup | conference;
+	let sms = sessionStorage.sms;
+	let redirect = sessionStorage.redirect;
+	let ctrlcmd = dial | hangup | conference | redirect;
 	sessionStorage.dial = false;
 	sessionStorage.hangup = false;
-	sessionStorage.dtmf = false;
 	sessionStorage.record = null;
 	sessionStorage.conference = false;
-	let prompt = outputs.map((t) => { return t.text }).join('\n');
-	let numDigits = dtmf ? 'numDigits="1"' : '';
-	let gather = '<Gather method="POST" action="' + url + '" input="speech dtmf" language="en-US" timeout="3" ' + numDigits + '>' + prompt + '</Gather>';
-	let cpaasResponse = '<Response>' + (record) + (ctrlcmd ? prompt : gather) + '</Response>';
+	sessionStorage.sms = false;
+	sessionStorage.redirect = false;
+	sessionStorage.numberOfDigits = DEFAULT_NUM_DIGITS;
+	let smsCmds = sms ? outputs.map((t) => {return t.data.sms}).join('\n') : '';
+	let prompt = outputs.map((t) => {return t.text}).join('\n');
+	let numDigits = 'numDigits="' + numberOfDigits + '"';
+	let gather = '<Gather method="POST" action="'+url+'" input="speech dtmf" language="en-US" timeout="3" ' + numDigits + '>'+prompt+'</Gather>';
+	let cpaasResponse = '<Response>' + (record) + (smsCmds) + (ctrlcmd ? prompt : gather) + '</Response>';
 	return (cpaasResponse);
 };
 
 const getCPaaSSmsCmd = (sessionStorage, url, outputs) => {
-	let text = outputs.map((t) => { return t.text }).join('\n');
+	let text = outputs.map((t) => {return t.text}).join('\n');
 	let From = sessionStorage.To;
 	let To = sessionStorage.From;
-	let FromTo = ' From="' + From + '" To="' + To + '"';
-	let cpaasResponse = '<Response><Sms action="' + url + FromTo + '>' + text + '</Sms></Response>';
+	let FromTo = ' From="'+From+'" To="'+To+'"';
+	let cpaasResponse = '<Response><Sms action="'+url+FromTo+'>'+text+'</Sms></Response>';
 	return (cpaasResponse);
 }
