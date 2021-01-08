@@ -21,13 +21,14 @@ While creating Cognigy flow, you can use Avaya Extension nodes such as play,prom
         "2":"support"
         "3":"marketing"
 ```  
-    where the digits are the dtmf buttons and the texts are the Cognigy's intents. The digits of prompt menu can be reused in other menu prompts in the same flow.
+    where the digits are the dtmf buttons and the texts are the Cognigy's intents or input text. The digits of prompt menu can be reused in other menu prompts in the same flow.
 **record** - use a toggle button to enable recording on the conversation flow or not.  
 **handover** - requires phone number or sip address to be handed over and an optional callback url.  
 **conference** - requires a conference room name.  
 **hangup** - hangs up the call.  
 **sms** - sends the sms messages in the voice channel flow. It's not needed for sms channel.  
-**redirect** - redirects current Cognigy flow to another flow and won't return. It requires the endpoint url of the other flow.
+**redirect** - redirects current Cognigy flow to another flow and won't return. It requires the endpoint url of the target flow.  
+**locale** - sets the locale language and the voice type on CPaaS so that the intended language and the voice will be spoken to the customers.  
 
 # Deploy #
 A Cognigy flow should be created and deployed with the endpoint type of Avaya voice channel  and the ``Enable Input Transformer``, ``Enable Output Transformer`` and ``Enable Execution Finished Transformer`` have to be ``enabled``.
