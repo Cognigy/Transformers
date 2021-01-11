@@ -29,6 +29,9 @@ const COGNIGY_BASE_URL = 'https://endpoint-trial.cognigy.ai/';
 const DEBUG_MODE = false;
 const MAX_CONF_PARTIES = 2;
 const DEFAULT_NUM_DIGITS = 1;
+const DEFAULT_LANGUAGE = 'en-US';
+const DEFAULT_GATHER_TIMEOUT = 3;
+const DEFAULT_VOICE = 'woman';
 
 createRestTransformer({
 
@@ -110,11 +113,16 @@ createRestTransformer({
 	 */
 	handleOutput: async ({ output, endpoint, userId, sessionId }) => {
 		const sessionStorage = await getSessionStorage(userId, sessionId);
+		sessionStorage.language = sessionStorage.language ? sessionStorage.language : DEFAULT_LANGUAGE;
+		sessionStorage.voice = sessionStorage.voice ? sessionStorage.voice : DEFAULT_VOICE;
+		let voice = ' voice="' + sessionStorage.voice + '"';
+		let language = ' language="' + sessionStorage.language + '"';
+		let say = '<Say' + language + voice + '>';
 		if (output.data != null && output.data._cognigy != null) {
 			const payload = output.data._cognigy;
 			if (DEBUG_MODE) {
 				console.log('payload='.concat(JSON.stringify(payload)));
-			}
+			} 
 			const activities = payload._spoken.json.activities;
 			activities.forEach( (activity) => {
 				switch (activity.name) {
@@ -145,11 +153,15 @@ createRestTransformer({
 						if (promptType === 'menu') {
 							const menu = activity.activityParams.menu;
 							sessionStorage['menu'] = menu;
-							output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.menuText : ('<Say>' + activity.activityParams.menuText + '</Say>');
 							sessionStorage.numberOfDigits = DEFAULT_NUM_DIGITS;
+							if (activity.activityParams.menuText) {
+								output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.menuText : (say + activity.activityParams.menuText + '</Say>');
+							}
 						} else if (promptType === 'number') {
 							sessionStorage.numberOfDigits = activity.activityParams.numberOfDigits;
-							output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.numberText : ('<Say>' + activity.activityParams.numberText + '</Say>');
+							if (activity.activityParams.numberText) {
+								output.text = (sessionStorage.cpaas_channel == 'sms') ? activity.activityParams.numberText : (say + activity.activityParams.numberText + '</Say>');
+							}
 						}
 						break;
 					case 'hangup':
@@ -189,12 +201,16 @@ createRestTransformer({
 						sessionStorage.redirect = true;
 						output.text += activity.activityParams.url ? ('<Redirect>'+ activity.activityParams.url + '</Redirect>') : '';
 						break;
+					case 'locale':
+						sessionStorage.language = activity.activityParams.language;
+						sessionStorage.voice = activity.activityParams.voice;
+						break;
 					default:
 						break;
 				}
 			});
 		} else if (output.text != null && (sessionStorage.cpaas_channel == 'call')) {
-            output.text = '<Say>' + output.text + '</Say>';
+            output.text = say + output.text + '</Say>';
         }
 		return output;
 	},
@@ -242,6 +258,7 @@ createRestTransformer({
 });
 
 const getCPaaSCallCmd = (sessionStorage, url, outputs) => {
+	let language = sessionStorage.language;
 	let dial = sessionStorage.dial;
 	let hangup = sessionStorage.hangup;
 	let numberOfDigits = sessionStorage.numberOfDigits;
@@ -260,7 +277,7 @@ const getCPaaSCallCmd = (sessionStorage, url, outputs) => {
 	let smsCmds = sms ? outputs.map((t) => {return t.data.sms}).join('\n') : '';
 	let prompt = outputs.map((t) => {return t.text}).join('\n');
 	let numDigits = 'numDigits="' + numberOfDigits + '"';
-	let gather = '<Gather method="POST" action="'+url+'" input="speech dtmf" language="en-US" timeout="3" ' + numDigits + '>'+prompt+'</Gather>';
+	let gather = '<Gather method="POST" action="'+url+'" input="speech dtmf" language="' + language + '" timeout="' + DEFAULT_GATHER_TIMEOUT + '" ' + numDigits + '>'+prompt+'</Gather>';
 	let cpaasResponse = '<Response>' + (record) + (smsCmds) + (ctrlcmd ? prompt : gather) + '</Response>';
 	return (cpaasResponse);
 };
