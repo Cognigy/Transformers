@@ -4,7 +4,7 @@
 
 | Icon  | Name  | Description | Type | Download  | Version  |
 |---|---|---|---|---|--|
-| <img src="./endpoint/avayaVoiceChannel/icon.png" width="40"></img> |  [Avaya Voice Channel](./endpoint/avayaVoiceChannel/) |  Avaya CPaaS | REST | [Download](https://github.com/Cognigy/TransformersSamples/releases/download/avayavoicechannel110/transformer.ts) |  1.1.0 |
+| <img src="./endpoint/avayaVoiceChannel/icon.png" width="40"></img> |  [Avaya Voice Channel](./endpoint/avayaVoiceChannel/) |  Avaya CPaaS | REST | [Download](https://github.com/Cognigy/TransformersSamples/releases/download/avayavoicechannel111/transformer.ts) |  1.1.1 |
 | <img src="./endpoint/realtimeTranslationTransformer/docs/translator.png" width="40"></img> |  [Realtime Translation](./endpoint/realtimeTranslationTransformer/) |  Realtime Text Translation with Microsoft Translator | SOCKET | [Download](https://github.com/Cognigy/TransformersSamples/releases/download/realtimeTranslation100/transformer.ts) |  1.0.0 |
 | <img src="./endpoint/tyntecWhatsAppTransformer/docs/whatsapp.svg" width="40"></img> |  [WhatsApp](./endpoint/tyntecWhatsAppTransformer/) |  WhatsApp messages with Tyntec | REST | [Download V3](https://github.com/Cognigy/TransformersSamples/releases/download/tyntecWhatsApp200/transformer-v3.ts) [Download V4](https://github.com/Cognigy/TransformersSamples/releases/download/tyntecWhatsApp200/transformer-v4.ts) |  2.0.0 |
 
