@@ -3,9 +3,10 @@ This repository contains multiple Transformer examples that shows how to work wi
 
 ## Contents
 
-- [Releases](./RELEASES.md)
+- [Releases](https://support.cognigy.com/hc/en-us/articles/360019704899#endpoint-transformers-0-1)
+- [Installation](https://support.cognigy.com/hc/en-us/articles/360019665180)
 - [Transformers](./transformers/)
-- [Concepts](./CONCEPTS.md)
+- [Concepts](https://support.cognigy.com/hc/en-us/articles/360019665060)
 
 ## Overview
 
