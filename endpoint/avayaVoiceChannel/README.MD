@@ -29,8 +29,12 @@ While creating Cognigy flow, you can use Avaya Extension nodes such as play,prom
 **sms** - sends the sms messages in the voice channel flow. It's not needed for sms channel.  
 **redirect** - redirects current Cognigy flow to another flow and won't return. It requires the endpoint url of the target flow.  
 **locale** - sets the locale language and the voice type on CPaaS so that the intended language and the voice will be spoken to the customers.  
+**hours** - get the business hours with the settgins of holiday and hours of operations  
 
 # Deploy #
-A Cognigy flow should be created and deployed with the endpoint type of Avaya voice channel  and the ``Enable Input Transformer``, ``Enable Output Transformer`` and ``Enable Execution Finished Transformer`` have to be ``enabled``.
-
+A Cognigy flow should be created and deployed with the endpoint type of Avaya voice channel with the optional parameter ``CpaaS Token`` which authenticates CPaaS's signature, and the ``Enable Input Transformer``, ``Enable Output Transformer`` and ``Enable Execution Finished Transformer`` have to be ``enabled``.
+```
+        CPaaS Token
+        90b196e676074f52xb4de0a2d13af4f3
+```
 Next copy the endpoint url and paste it into the ``Voice Configuration`` -> ``WebLink`` of the phone number in Avaya CPaaS. Now it's ready for you to call the number to experience the Cognigy's flow.
