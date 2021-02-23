@@ -1,3 +1,5 @@
+**DEPRECATED ([-> New Version](../webchat/translate))**
+
 # Description
 This Transformer example shows how to translate the inputs from the user as well as the outputs from the Flow in order to enable one Flow in one language to be used in other languages. 
 
