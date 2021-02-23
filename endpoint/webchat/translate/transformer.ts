@@ -162,7 +162,7 @@ async function translateCognigyMessage(data: any, language: string) {
                 for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
                     // Get the index of the current sentence in the list of sentences called 'text'
                     let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-                    data.data._cognigy._webchat.message.quick_replies[index].title = translation.data.translations[index + 1].translatedText
+                    data.data._cognigy._webchat.message.quick_replies[index].title = translation.data.translations[index + 1].translatedText;
                 }
 
                 break;
@@ -175,7 +175,7 @@ async function translateCognigyMessage(data: any, language: string) {
                 for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
                     // Get the index of the current sentence in the list of sentences called 'text'
                     let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-                    data.data._cognigy._webchat.message.quick_replies[index].title = translation[0].translations[index + 1].text
+                    data.data._cognigy._webchat.message.quick_replies[index].title = translation[0].translations[index + 1].text;
                 }
 
                 break;
@@ -195,58 +195,38 @@ async function translateCognigyMessage(data: any, language: string) {
             textArray.push(data.data._cognigy._webchat?.message?.attachment.payload.buttons[index].title);
         }
 
-        translation = await googleTranslate(textArray, language);
+        // Check the selected translator
+        switch (TRANSLATOR) {
+            case 'google':
+                translation = await googleTranslate(textArray, language);
 
-        data.data._cognigy._webchat.message.attachment.payload.text = translation.data.translations[0].translatedText;
+                /** Translate message */
+                data.data._cognigy._webchat.message.attachment.payload.text = translation.data.translations[0].translatedText;
 
-        for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
-            // Get the index of the current sentence in the list of sentences called 'text'
-            let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
-            data.data._cognigy._webchat.message.attachment.payload.buttons[index].title = translation.data.translations[index + 1].translatedText
+                for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
+                    // Get the index of the current sentence in the list of sentences called 'text'
+                    let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
+                    data.data._cognigy._webchat.message.attachment.payload.buttons[index].title = translation.data.translations[index + 1].translatedText;
+                }
+
+                break;
+            case 'microsoft':
+                translation = await microsoftTranslate(textArray, language);
+
+                /** Translate message */
+                data.data._cognigy._webchat.message.attachment.payload.text = translation[0].translations[0].text;
+
+                for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
+                    let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
+                    data.data._cognigy._webchat.message.attachment.payload.buttons[index].title = translation[index + 1].translations[0].text;
+                }
+
+                break;
         }
     }
 
-    // Check if type is list
-    if (data?.data?._cognigy?._webchat?.message?.attachment?.payload?.template_type === 'list') {
-
-        // Loop through the list buttons
-        for (let element of data.data._cognigy._webchat?.message?.attachment.payload.elements) {
-            let index = data.data._cognigy._webchat?.message?.attachment.payload.elements.indexOf(element);
-            textArray.push(data.data._cognigy._webchat?.message?.attachment.payload.elements[index].title);
-            textArray.push(data.data._cognigy._webchat?.message?.attachment.payload.elements[index].subtitle);
-        }
-
-        translation = await googleTranslate(textArray, language);
-
-        for (let element of data.data._cognigy._webchat?.message?.attachment.payload.elements) {
-            // Get the index of the current sentence in the list of sentences called 'text'
-            let index = data.data._cognigy._webchat?.message?.attachment.payload.elements.indexOf(element);
-            data.data._cognigy._webchat.message.attachment.payload.elements[index].title = translation.data.translations[index].translatedText
-            data.data._cognigy._webchat.message.attachment.payload.elements[index].subtitle = translation.data.translations[index + 1].translatedText
-        }
-    }
     return data;
 }
-
-
-/**
- * Get the Google Translate Locale from plain text language
- * @param {string} `language` The language string such as English or German
- */
-function getLocale(language: string) {
-
-    switch (language) {
-        case "German":
-            return 'de';
-        case "French":
-            return 'fr';
-        case "English":
-            return 'en';
-        default:
-            return 'en';
-    }
-}
-
 
 createSocketTransformer({
 
@@ -318,10 +298,9 @@ createSocketTransformer({
         } else if (sessionStorage.language) {
             // Get stored language
             const language = sessionStorage?.language;
-            let locale = getLocale(language);
 
             // Translate the outgoing message
-            const translatedProcessedOutput = await translateCognigyMessage(processedOutput, locale)
+            const translatedProcessedOutput = await translateCognigyMessage(processedOutput, language)
             return translatedProcessedOutput;
         }
 
