@@ -175,7 +175,7 @@ async function translateCognigyMessage(data: any, language: string) {
                 for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
                     // Get the index of the current sentence in the list of sentences called 'text'
                     let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-                    data.data._cognigy._webchat.message.quick_replies[index].title = translation[0].translations[index + 1].text;
+                    data.data._cognigy._webchat.message.quick_replies[index].title = translation[index + 1].translations[0].text;
                 }
 
                 break;
