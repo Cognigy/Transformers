@@ -2,6 +2,8 @@
 
 With this transformer function, a Cognigy.AI virtual agent can be connected the [Telegram Messenger](https://telegram.org).
 
+<img src="./telegram.svg" width="200">
+
 ## Set Up
 
 In order to establish this connection, Telegram and Cognigy.AI need to be configured first.
