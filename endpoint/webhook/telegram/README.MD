@@ -4,6 +4,15 @@ With this transformer function, a Cognigy.AI virtual agent can be connected the 
 
 <img src="./telegram.svg" width="200">
 
+**Message Types:**
+
+- Text
+- Audio
+  - *Needs to be a URL to a .mp3 file*
+- Image
+- Video
+  - *Needs to be a URL to a .mp4 file*
+
 ## Set Up
 
 In order to establish this connection, Telegram and Cognigy.AI need to be configured first.
