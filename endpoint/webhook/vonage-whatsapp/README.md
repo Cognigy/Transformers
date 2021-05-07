@@ -4,6 +4,21 @@
 
 This [Transformer Function](https://docs.cognigy.com/docs/transformers) converts the Default (Version 4) content of your [Say Node](https://docs.cognigy.com/docs/say-nodes) to valid [WhatsApp](https://www.whatsapp.com/) messages by using [Vonage](https://www.vonage.com/).
 
+## Endpoint Configuration
+
+In order to use this Transformer function, two settings need to be configured:
+
+**Transformer Functions:**
+
+Open the section, click on **Enable Input Transformer** and **Enable Output Transformer**. Finally, paste the entire [source code](./transformer.ts) into the dark code window.
+
+**Basic Auth Credentials:**
+
+The connection with Vonage is established using a basic authentication. Therefore, the following information needs to be provided:
+
+- **User:** Vonage API Key
+- **Password:** Vonage API Secret
+- **Webhook:** https://messages-sandbox.nexmo.com/v0.1/messages
 
 ## Provided Message Types
 
