@@ -1,4 +1,3 @@
-const BASIC_AUTH: string = ""; // BASIC AUTH Token
 const FROM_NUMBER: string = "";
 
 /**
@@ -172,7 +171,7 @@ createWebhookTransformer({
 		const userId = request?.body?.from?.number;
 		const sessionId = request?.body?.from?.number;
 		const text = request?.body?.message?.content?.text;
-		const data = {}
+		const data = request?.body
 
 		return {
 			userId,
@@ -186,31 +185,18 @@ createWebhookTransformer({
 		// conert Cognigy.AI message to Vonage WhatsApp content
 		const whatsappContent: TWhatsAppContent = convertWebchatContentToWhatsApp(output);
 
-		console.log(JSON.stringify(whatsappContent))
-
-		await httpRequest({
-			method: "POST",
-			uri: "https://messages-sandbox.nexmo.com/v0.1/messages",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Basic ${BASIC_AUTH}`,
-				"Accept": "application/json"
+		return {
+			"from": { 
+				"type": "whatsapp",
+				"number": FROM_NUMBER
 			},
-			body: {
-				"from": { 
-					"type": "whatsapp",
-					"number": FROM_NUMBER
-				},
-				"to": {
-					"type": "whatsapp",
-					"number": userId
-				},
-				"message": {
-					"content": whatsappContent
-				}
+			"to": {
+				"type": "whatsapp",
+				"number": userId
 			},
-			json: true
-		})
-		return output;
+			"message": {
+				"content": whatsappContent
+			}
+		};
 	}
 })
