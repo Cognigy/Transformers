@@ -1,30 +1,15 @@
 # Realtime Translation Transformer
+For the Cognigy Webchat endpoint.
 
-For the Cognigy Webchat.
-
-With this Transformer function, Cognigy.AI is able to **translate messages** that were sent by the **user** and **virtual agent** automatically. In order to do so, one can select between the **Microsoft** or **Google Translator**.
+With this Transformer function, Cognigy.AI is able to translate messages that were sent by the user and virtual agent automatically using **Microsoft Translate** or **Google Translate** API.
 
 ## Configuration
 
-- `TRANSLATOR`
-    - The Translation tool that should be used
-    - Options:
-        - 'google'
-        - 'microsoft'
-
-- `TRANSLATOR_API_KEY`
-    - The API Key of the selected Translation tool
-- `FLOW_LANGUAGE`
-    - The language of the Cognigy.AI Flow that the user is talking to. This will be the locale, such as 'en', 'de', 'fr' a.s.o
-    - Options:
-        - [*Read more -> Google Translate*](https://cloud.google.com/translate/docs/languages)
-        - [*Read more -> Microsoft Translate*](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support)
-- `AUTO_DETECT_LANGUAGE`
-    - Whether the Transformer should detect the user's language or not
-    - Options
-        - `true`
-        - `false`
-
+- `TRANSLATOR` - which API to use, can be 'google' or 'microsoft'
+- `TRANSLATOR_API_KEY` - the API Key of the selected API
+- `FLOW_LANGUAGE` - the language of the Cognigy.AI Flow in a two-letter code format, e.g. 'en', 'de', 'fr'. Read more: [Google Translate](https://cloud.google.com/translate/docs/languages), [Microsoft Translate](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support)
+- `AUTO_DETECT_LANGUAGE` - should the Transformer detect the user messages language automatically, which is returned by the translation API. Can be  `true` or `false`
+- `NO_TRANSLATE_PREFFIX` - a prefix text, which is added before the postback of the buttons. Later, if the user clicks on a button, the prefix is automatically removed and the postback text is handled directly to the flow without being translated.
 
 ## Option 1: Auto Detect Language
 
@@ -44,10 +29,11 @@ Since the message doesn't contain a text, it is not displayed in the chat window
 
 **Important!**
 
-**Please make sure that the sent `language` value fits the schema of the selected Translation tool. In order to read more about this, take a look into the linked pages in the `FLOW_LANGUAGE` configuration at the top.**
+Please make sure that the sent `language` value fits the schema of the selected Translation tool. In order to read more about this, take a look into the linked pages in the `FLOW_LANGUAGE` configuration at the top.
 
 ## Supported Message Types
 
 - Text
 - Text with Quick Replies
 - Text with Buttons
+- Gallery

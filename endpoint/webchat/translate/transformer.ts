@@ -1,339 +1,212 @@
-/**
- * Configuration
- */
+const TRANSLATOR: string = 'google' // 'google' or 'microsoft'
+const TRANSLATOR_API_KEY = 'YourApiKey' // TRANSLATOR API key
 
-// 'google' or 'microsoft'
-const TRANSLATOR: string = 'google';
-// The Google or Microsoft translate API key
-const TRANSLATOR_API_KEY: string = "";
-// The langauge of the Cognigy.AI Flow
-const FLOW_LANGUAGE: string = "en"
-// Whether the Transformer should detect the user's language or not
-const AUTO_DETECT_LANGUAGE: boolean = true;
+const FLOW_LANGUAGE = 'en' // Langauge of the flow, from which bot messages and to which user messages are translated
+const AUTO_DETECT_LANGUAGE = true // Should the transformer detect the user language automatically from their last message
+const NO_TRANSLATE_PREFFIX = 'NoTranslate:' // Added to postbacks. If the user message starts with it, it is removed from the message and the message is not translated
 
-/**
- * Interfaces
- */
-interface IGoogleTranslateTranslationObject {
-    translatedText: string;
-    detectedSourceLanguage: string;
+async function translateGoogle(textArray: string[], userLanguage: string): Promise<any> {
+  return await httpRequest({
+    method: 'POST',
+    uri: `https://translation.googleapis.com/language/translate/v2?key=${TRANSLATOR_API_KEY}`,
+    headers: { 'Content-type': 'application/json' },
+    body: { 'q': textArray, 'target': userLanguage },
+    json: true
+  })
 }
 
-interface IGoogleTranslateDataObject {
-    translations: IGoogleTranslateTranslationObject[];
+async function translateMicrosoft(textsToTranslate: string[], userLanguage: string): Promise<any> {
+  let microsoftTextArray = []
+  textsToTranslate.forEach(textToTranslate => {
+    microsoftTextArray.push(textToTranslate)
+  })
+
+  return await httpRequest({
+    method: 'POST',
+    uri: `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${userLanguage}`,
+    headers: {
+      'Ocp-Apim-Subscription-Key': TRANSLATOR_API_KEY,
+      'Content-type': 'application/json',
+      'Accept': 'application/json',
+      'X-ClientTraceId': uuid.v4().toString()
+    },
+    body: microsoftTextArray,
+    json: true
+  })
 }
 
-interface IGoogleTranslateResponse {
-    data: IGoogleTranslateDataObject;
+async function translate(textsToTranslate: string[], userLanguage: string): Promise<string[]> {
+  if (userLanguage === FLOW_LANGUAGE) { // Do not translate e.g. en to en
+    return textsToTranslate
+  }
+
+  const translatedTexts = []
+  if (TRANSLATOR == 'google') {
+    const googleTranslation = await translateGoogle(textsToTranslate, userLanguage)
+    googleTranslation.data.translations.forEach(element => {
+      translatedTexts.push(element.translatedText)
+    })
+  } else if (TRANSLATOR == 'microsoft') {
+    const microsoftTranslation = await translateMicrosoft(textsToTranslate, userLanguage)
+    microsoftTranslation.forEach(element => {
+      translatedTexts.push(element.translations[0].text)
+    })
+  }
+
+  return translatedTexts
 }
 
-interface IMicrosoftTranslateTranslationObject {
-    text: string;
-    to: string;
-}
+async function translateBotMessage(data: any, userLanguage: string) {
+  if (data?.text) { // Translate a Text message
+    const textsTranslated = await translate([data.text], userLanguage)
+    data.text = textsTranslated[0]
+  }
 
-interface IMicrosoftTranslateDetectedLanguageObject {
-    language: string;
-    score: number;
-}
-
-interface IMicrosoftTranslateResponse {
-    detectedLanguage: IMicrosoftTranslateDetectedLanguageObject;
-    translations: IMicrosoftTranslateTranslationObject[];
-}
-
-interface IMicrosoftTranslateRequestBody {
-    text: string;
-}
-
-/**
- * Google Translate HTTP Request function
- * @param {string[]} `textArray` A list of texts that should get translated
- * @param {string} `language` The locale, such as de or en
- */
-async function googleTranslate(textArray: string[], language: string): Promise<IGoogleTranslateResponse> {
-
-    try {
-        const googleOptions = {
-            method: 'POST',
-            uri: `https://translation.googleapis.com/language/translate/v2?key=${TRANSLATOR_API_KEY}`,
-            headers: {
-                'Content-type': 'application/json'
-            },
-            body: {
-                "q": textArray,
-                "target": language
-            },
-            json: true
-        };
-
-        const response = await httpRequest(googleOptions);
-
-        return response;
-    } catch (error) {
-        throw new Error(error.message);
+  const webchatMessage = data?.data?._cognigy?._webchat?.message // A data payload message, can have quick replies, buttons or gallery
+  if (webchatMessage?.quick_replies) { // Translate a Text with Quick Replies message
+    let textsToTranslate = []
+    if (webchatMessage.text) { // Text above quick replies
+      textsToTranslate.push(webchatMessage.text)
     }
-}
+    webchatMessage.quick_replies.forEach(quickReply => {
+      if (quickReply.title) {
+        textsToTranslate.push(quickReply.title)
+      }
+    })
 
-/**
- * Microsoft Translate HTTP Request function
- * @param {string[]} `textArray` A list of texts that should get translated
- * @param {string} `language` The locale, such as de or en
- */
-async function microsoftTranslate(textArray: string[], language: string): Promise<IMicrosoftTranslateResponse[]> {
-
-    let microsoftTextArray: IMicrosoftTranslateRequestBody[] = [];
-
-    // Fill the microsoftTextArray with a valid format of information
-    for (let text of textArray) {
-        microsoftTextArray.push({
-            text
-        });
+    const textsTranslated = await translate(textsToTranslate, userLanguage)
+    if (webchatMessage.text) { // Text message above Quick Replies
+      const index = textsToTranslate.indexOf(webchatMessage.text)
+      webchatMessage.text = textsTranslated[index]
     }
+    webchatMessage.quick_replies.forEach(quickReply => {
+      if (quickReply.payload) { // Add a prefix to the payload to avoid translation later when it is sent back in a user message
+        quickReply.payload = `${NO_TRANSLATE_PREFFIX}${quickReply.payload}`
+      }
+      if (quickReply.title) {
+        const index = textsToTranslate.indexOf(quickReply.title)
+        quickReply.title = textsTranslated[index]
+      }
+    })
+  }
 
-    try {
-        const microsoftOptions = {
-            method: 'POST',
-            uri: `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${language}`,
-            headers: {
-                'Ocp-Apim-Subscription-Key': TRANSLATOR_API_KEY,
-                'Content-type': 'application/json',
-                'Accept': 'application/json',
-                'X-ClientTraceId': uuid.v4().toString()
-            },
-            body: microsoftTextArray,
-            json: true
-        };
-
-        const response = await httpRequest(microsoftOptions);
-
-        return response;
-    } catch (error) {
-        throw new Error(error.message);
+  if (webchatMessage?.attachment?.payload?.template_type === 'button') { // Translate a Text with Buttons message
+    let textsToTranslate = []
+    if (webchatMessage.attachment.payload.text) { // The text above buttons
+      textsToTranslate.push(webchatMessage.attachment.payload.text)
     }
-}
+    webchatMessage.attachment.payload.buttons.forEach(button => {
+      if (button.title) {
+        textsToTranslate.push(button.title)
+      }
+    })
 
-/**
- * Translate the Cognigy.AI Webchat message into the selected language
- * @param {any} `data` The Cognigy.AI data template message, such as Text, Text with Quick Replies, List or Gallery
- * @param {string} `language` The locale to translate to, such as de or en
- */
-async function translateCognigyMessage(data: any, language: string) {
-
-    let translation: (IGoogleTranslateResponse | IMicrosoftTranslateResponse[]);
-    let textArray: string[] = [];
-
-    // Check if type is text
-    if (data.text) {
-        // Check the selected translator
-        switch (TRANSLATOR) {
-            case 'google':
-                translation = await googleTranslate([data.text], language);
-                data.text = translation.data.translations[0].translatedText;
-                break;
-            case 'microsoft':
-                translation = await microsoftTranslate([data.text], language);
-                data.text = translation[0].translations[0].text;
-                break;
-        }
+    const textsTranslated = await translate(textsToTranslate, userLanguage)
+    if (webchatMessage.attachment.payload.text) { // The text above buttons
+      const index = textsToTranslate.indexOf(webchatMessage.attachment.payload.text)
+      webchatMessage.attachment.payload.text = textsTranslated[index]
     }
+    webchatMessage.attachment.payload.buttons.forEach(button => {
+      if (button.payload) { // Add a prefix to the payload to avoid translation later when it is sent back in a user message
+        button.payload = `${NO_TRANSLATE_PREFFIX}${button.payload}`
+      }
+      if (button.title) {
+        const index = textsToTranslate.indexOf(button.title)
+        button.title = textsTranslated[index]
+      }
+    })
+  }
 
-    // Check for Webchat Quick Replies
-    if (data?.data?._cognigy?._webchat?.message?.quick_replies) {
+  if (data.data?._cognigy?._webchat?.message?.attachment?.payload?.elements) { // Translate a Gallery message
+    const galleryElements = data.data._cognigy._webchat.message.attachment.payload.elements
 
-        // Translate the text of the quick reply text
-        textArray.push(data.data._cognigy._webchat.message.text);
+    let textsToTranslate = []
+    galleryElements.forEach((element) => {
+      if (element.title) {
+        textsToTranslate.push(element.title)
+      }
+      if (element.subtitle) {
+        textsToTranslate.push(element.subtitle)
+      }
+      if (element.buttons) {
+        element.buttons.forEach(button => {
+          if (button.title) {
+            textsToTranslate.push(button.title)
+          }
+        })
+      }
+    })
 
-        // Loop through the quick replies
-        for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
-            // Get the index of the current sentence in the list of sentences called 'text'
-            let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-            textArray.push(data.data._cognigy._webchat?.message?.quick_replies[index].title);
-        }
+    const textsTranslated = await translate(textsToTranslate, userLanguage)
 
-        // Check the selected translator
-        switch (TRANSLATOR) {
-            case 'google':
-                translation = await googleTranslate(textArray, language);
+    galleryElements.forEach((element) => {
+      if (element.title) {
+        const index = textsToTranslate.indexOf(element.title)
+        element.title = textsTranslated[index]
+      }
+      if (element.subtitle) {
+        const index = textsToTranslate.indexOf(element.subtitle)
+        element.subtitle = textsTranslated[index]
+      }
+      if (element.buttons) {
+        element.buttons.forEach(button => {
+          if (button.title) {
+            const index = textsToTranslate.indexOf(button.title)
+            button.title = textsTranslated[index]
+          }
+        })
+      }
+    })
+  }
 
-                /** Translate message */
-                data.data._cognigy._webchat.message.text = translation.data.translations[0].translatedText;
-
-                for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
-                    // Get the index of the current sentence in the list of sentences called 'text'
-                    let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-                    data.data._cognigy._webchat.message.quick_replies[index].title = translation.data.translations[index + 1].translatedText;
-                }
-
-                break;
-            case 'microsoft':
-                translation = await microsoftTranslate(textArray, language);
-
-                /** Translate message */
-                data.data._cognigy._webchat.message.text = translation[0].translations[0].text;
-
-                for (let quickReply of data.data._cognigy._webchat?.message?.quick_replies) {
-                    // Get the index of the current sentence in the list of sentences called 'text'
-                    let index = data.data._cognigy._webchat?.message?.quick_replies.indexOf(quickReply);
-                    data.data._cognigy._webchat.message.quick_replies[index].title = translation[0].translations[index + 1].text;
-                }
-
-                break;
-        }
-    }
-
-    // Check for Webchat Buttons
-    if (data.data?._cognigy?._webchat?.message?.attachment?.payload?.template_type === 'button') {
-
-        // Translate the text of the quick reply text
-        textArray.push(data.data._cognigy._webchat.message.attachment.payload.text);
-
-        // Loop through the quick replies
-        for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
-            // Get the index of the current sentence in the list of sentences called 'text'
-            let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
-            textArray.push(data.data._cognigy._webchat?.message?.attachment.payload.buttons[index].title);
-        }
-
-        // Check the selected translator
-        switch (TRANSLATOR) {
-            case 'google':
-                translation = await googleTranslate(textArray, language);
-
-                /** Translate message */
-                data.data._cognigy._webchat.message.attachment.payload.text = translation.data.translations[0].translatedText;
-
-                for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
-                    // Get the index of the current sentence in the list of sentences called 'text'
-                    let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
-                    data.data._cognigy._webchat.message.attachment.payload.buttons[index].title = translation.data.translations[index + 1].translatedText;
-                }
-
-                break;
-            case 'microsoft':
-                translation = await microsoftTranslate(textArray, language);
-
-                /** Translate message */
-                data.data._cognigy._webchat.message.attachment.payload.text = translation[0].translations[0].text;
-
-                for (let button of data.data._cognigy._webchat?.message?.attachment.payload.buttons) {
-                    let index = data.data._cognigy._webchat?.message?.attachment.payload.buttons.indexOf(button);
-                    data.data._cognigy._webchat.message.attachment.payload.buttons[index].title = translation[index + 1].translations[0].text;
-                }
-
-                break;
-        }
-    }
-
-    return data;
+  return data
 }
 
 createSocketTransformer({
+  handleInput: async ({ payload, endpoint }) => {
+    const sessionStorage = await getSessionStorage(payload.userId, payload.sessionId)
+    const userText = payload.text
 
-    handleInput: async ({ payload, endpoint }) => {
-
-        // Now the language could be used in order to tanslate the user's text, for example
-        let translation: (IGoogleTranslateResponse | IMicrosoftTranslateResponse[]);
-        let detectedSourceLanguage: string;
-        let sessionStorage = await getSessionStorage(payload.userId, payload.sessionId);
-
-        switch (TRANSLATOR) {
-            case 'google':
-                translation = await googleTranslate([payload.text], FLOW_LANGUAGE);
-
-                // Write detected language into the session storage
-                if (AUTO_DETECT_LANGUAGE) {
-                    detectedSourceLanguage = translation.data.translations[0].detectedSourceLanguage;
-                    sessionStorage.detectedSourceLanguage = detectedSourceLanguage;
-                }
-
-                return {
-                    userId: payload.userId,
-                    sessionId: payload.sessionId,
-                    // @ts-ignore
-                    text: translation.data.translations[0].translatedText,
-                    data: payload.data
-                };
-            case 'microsoft':
-                translation = await microsoftTranslate([payload.text], FLOW_LANGUAGE);
-
-                if (AUTO_DETECT_LANGUAGE) {
-                    // Write detected language into the session storage
-                    detectedSourceLanguage = translation[0].detectedLanguage.language;
-                    sessionStorage.detectedSourceLanguage = detectedSourceLanguage;
-                }
-
-                return {
-                    userId: payload.userId,
-                    sessionId: payload.sessionId,
-                    text: translation[0].translations[0].text,
-                    data: payload.data
-                };
-            default:
-                return {
-                    userId: payload.userId,
-                    sessionId: payload.sessionId,
-                    text: payload.text,
-                    data: payload.data
-                };
-        }
-    },
-    handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
-
-        // Create Session Storage
-        const sessionStorage = await getSessionStorage(userId, sessionId);
-
-        // Check if language information is provided
-        if (processedOutput?.data?.language) {
-            sessionStorage.language = processedOutput.data.language;
-        }
-
-        if (AUTO_DETECT_LANGUAGE) {
-            const detectedSourceLanguage: string = sessionStorage?.detectedSourceLanguage;
-
-            // Translate the outgoing message
-            const translatedProcessedOutput = await translateCognigyMessage(processedOutput, detectedSourceLanguage)
-            return translatedProcessedOutput;
-
-        } else if (sessionStorage.language) {
-            // Get stored language
-            const language = sessionStorage?.language;
-
-            // Translate the outgoing message
-            const translatedProcessedOutput = await translateCognigyMessage(processedOutput, language)
-            return translatedProcessedOutput;
-        }
-
-        return processedOutput;
-    },
-    handleExecutionFinished: async ({ sessionId, userId, endpoint }) => {
-    },
-    handleInject: async ({ request, response, endpoint }) => {
-
-        const userId = "";
-        const sessionId = "";
-        const text = "";
-        const data = {}
-
-        return {
-            userId,
-            sessionId,
-            text,
-            data
-        };
-    },
-    handleNotify: async ({ request, response, endpoint }) => {
-
-        const userId = "";
-        const sessionId = "";
-        const text = "";
-        const data = {}
-
-        return {
-            userId,
-            sessionId,
-            text,
-            data
-        };
+    let translatedText
+    if (userText.startsWith(NO_TRANSLATE_PREFFIX)) {
+      translatedText = userText.substring(NO_TRANSLATE_PREFFIX.length)
+    } else if (TRANSLATOR === 'google') {
+      const googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE)
+      // Remember the detected language in the session storage
+      sessionStorage.detectedLanguage = googleTranslation.data.translations[0].detectedSourceLanguage
+      translatedText = googleTranslation.data.translations[0].translatedText
+    } else if (TRANSLATOR === 'microsoft') {
+      const msTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE)
+      // Remember the detected language in the session storage
+      sessionStorage.detectedLanguage = msTranslation[0].detectedLanguage.language
+      translatedText = msTranslation[0].translations[0].text
+    } else {
+      throw new Error(`TRANSLATOR should be either 'google' or 'microsoft'`)
     }
-});
+
+    return {
+      userId: payload.userId,
+      sessionId: payload.sessionId, // @ts-ignore
+      text: translatedText,
+      data: payload.data
+    }
+  },
+  handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
+    const sessionStorage = await getSessionStorage(userId, sessionId)
+    if (processedOutput?.data?.language) {
+      // Current message from the bot contains the desired translation language in the data payload
+      sessionStorage.language = processedOutput.data.language
+    }
+
+    let userLanguage = sessionStorage.language
+    if (AUTO_DETECT_LANGUAGE && sessionStorage.detectedLanguage) {
+      userLanguage = sessionStorage.detectedLanguage
+    }
+
+    if (userLanguage) {  // If the destination language is known then translate the message from the bot
+      return await translateBotMessage(processedOutput, userLanguage)
+    }
+
+    return processedOutput
+  }
+})
