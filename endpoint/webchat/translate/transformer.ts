@@ -175,7 +175,12 @@ async function translateBotMessage(data: any, userLanguage: string) {
 createSocketTransformer({
   handleInput: async ({ payload, endpoint }) => {
     const sessionStorage = await getSessionStorage(payload.userId, payload.sessionId)
-    const userText = payload.text
+
+    if (payload?.data?.language) { // Current message from the user contains the desired language in the data payload
+      sessionStorage.language = payload.data.language
+    }
+
+    const userText = payload?.text
 
     let translatedText
     if (!userText) {
@@ -189,12 +194,11 @@ createSocketTransformer({
       if (sessionStorage.language && !AUTO_DETECT_LANGUAGE) {
         // User language detection is off AND the user language is known 
         googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE, sessionStorage.language)
-      } else { // Either language detection is off OR the user language is unknown
+      } else { // Let Google Translate API detect the language automatically
         googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE) // Let the translate API detect the language
       }
 
-      if (googleTranslation.data?.translations[0]?.detectedSourceLanguage) {
-        // Remember the detected language in the session storage
+      if (googleTranslation.data?.translations[0]?.detectedSourceLanguage) { // Remember the detected language in the session storage
         sessionStorage.detectedLanguage = googleTranslation.data.translations[0].detectedSourceLanguage
       }
       translatedText = googleTranslation.data.translations[0].translatedText
@@ -203,12 +207,11 @@ createSocketTransformer({
       if (sessionStorage.language && !AUTO_DETECT_LANGUAGE) {
         // User language detection is off AND the user language is known 
         microsoftTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE, sessionStorage.language)
-      } else { // Either language detection is off OR the user language is unknown
+      } else { // Let Microsoft Translate API detect the language automatically
         microsoftTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE)
       }
 
-      if (microsoftTranslation[0]?.detectedLanguage?.language) {
-        // Remember the detected language in the session storage
+      if (microsoftTranslation[0]?.detectedLanguage?.language) { // Remember the detected language in the session storage
         sessionStorage.detectedLanguage = microsoftTranslation[0].detectedLanguage.language
       }
       translatedText = microsoftTranslation[0].translations[0].text
