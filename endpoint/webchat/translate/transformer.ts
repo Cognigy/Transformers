@@ -1,12 +1,72 @@
-const TRANSLATOR: string = '' // 'google' or 'microsoft'
-const TRANSLATOR_API_KEY = '' // TRANSLATOR API key
+/**
+ * CONFIGURATION
+ */
 
-const FLOW_LANGUAGE = 'en' // Langauge of the flow, from which bot messages and to which user messages are translated
-const AUTO_DETECT_LANGUAGE = true // Should the transformer detect the user language automatically from their last message
-const NO_TRANSLATE_PREFFIX = 'NoTranslate:' // Added to postbacks. If the user message starts with it, it is removed from the message and the message is not translated
+// 'google' or 'microsoft' or 'deepl'
+const TRANSLATOR: string = 'deepl';
+// TRANSLATOR API key
+const TRANSLATOR_API_KEY = '';
+// Langauge of the flow, from which bot messages and to which user messages are translated
+const FLOW_LANGUAGE = 'en';
+// Should the transformer detect the user language automatically from their last message
+const AUTO_DETECT_LANGUAGE = true;
+// Added to postbacks. If the user message starts with it, it is removed from the message and the message is not translated
+const NO_TRANSLATE_PREFFIX = 'NoTranslate:';
 
-async function translateGoogle(textArray: string[], toLanguage: string, fromLanguage?: string): Promise<any> {
-  const body = { 'q': textArray, 'target': toLanguage }
+/**
+ * INTERFACES
+ */
+
+interface ITranslateGoogleBody {
+  q: string[];
+  target: string;
+  source?: string;
+}
+
+interface ITranslateGoogleTranslation {
+  detectedSourceLanguage: string;
+  translatedText: string;
+}
+
+interface ITranslateGooglePromise {
+  data: {
+    translations: ITranslateGoogleTranslation[];
+  }
+}
+
+interface ITranslateMicrosoftBody {
+  Text: string;
+}
+
+interface ITranslateMicrosoftTranslation {
+  text: string;
+}
+
+interface ITranslateMicrosoftPromise {
+  detectedLanguage: {
+    language: string;
+  },
+  translations: ITranslateMicrosoftTranslation[];
+}
+
+interface ITranslateDeepLTranslations {
+  detected_source_language: string;
+  text: string;
+}
+
+interface ITranslateDeepLPromise {
+  translations: ITranslateDeepLTranslations[];
+}
+
+/**
+ * Translate a list of text messages with Google
+ * @param `textArray` A list of string text messages
+ * @param `toLanguage` The language code of the target language
+ * @param `fromLanguage` The language code of the source language
+ */
+async function translateGoogle(textArray: string[], toLanguage: string, fromLanguage?: string): Promise<ITranslateGooglePromise> {
+  const body: ITranslateGoogleBody = { 'q': textArray, 'target': toLanguage };
+
   if (fromLanguage) {
     body['source'] = fromLanguage
   }
@@ -20,11 +80,18 @@ async function translateGoogle(textArray: string[], toLanguage: string, fromLang
   })
 }
 
-async function translateMicrosoft(textsToTranslate: string[], toLanguage: string, fromLanguage?: string): Promise<any> {
-  const body = []
-  textsToTranslate.forEach(text => {
+/**
+ * Translate a list of text messages with Microsoft
+ * @param `textArray` A list of string text messages
+ * @param `toLanguage` The language code of the target language
+ * @param `fromLanguage` The language code of the source language
+ */
+async function translateMicrosoft(textArray: string[], toLanguage: string, fromLanguage?: string): Promise<ITranslateMicrosoftPromise[]> {
+  const body: ITranslateMicrosoftBody[] = [];
+
+  textArray.forEach(text => {
     body.push({ 'Text': text })
-  })
+  });
 
   let uri = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${toLanguage}`
   if (fromLanguage) {
@@ -45,6 +112,33 @@ async function translateMicrosoft(textsToTranslate: string[], toLanguage: string
   })
 }
 
+/**
+ * Translate a list of text messages with DeepL
+ * @param `textArray` A list of string text messages
+ * @param `toLanguage` The language code of the target language
+ * @param `fromLanguage` The language code of the source language
+ */
+async function translateDeepL(textArray: string[], toLanguage: string, fromLanguage?: string): Promise<ITranslateDeepLPromise> {
+
+  // Initialize string for HTTP text query paramters -> &text=...&text=...
+  let textQueryString: string = '';
+
+  // Build the text query string/s based on the number of texts in the array
+  textArray.forEach(text => {
+    textQueryString += `&text=${text}`
+  })
+
+  return await httpRequest({
+    method: 'POST',
+    uri: `https://api.deepl.com/v2/translate?auth_key=${TRANSLATOR_API_KEY}&target_lang=${toLanguage}${textQueryString}`,
+    headers: {
+      'Accept': '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    json: true
+  })
+}
+
 async function translate(textsToTranslate: string[], toLanguage: string, fromLanguage: string): Promise<string[]> {
   if (toLanguage === fromLanguage) { // Do not translate e.g. en to en
     return textsToTranslate
@@ -52,15 +146,20 @@ async function translate(textsToTranslate: string[], toLanguage: string, fromLan
 
   const textsTranslated = []
   if (TRANSLATOR === 'google') {
-    const googleTranslation = await translateGoogle(textsToTranslate, toLanguage, fromLanguage)
+    const googleTranslation = await translateGoogle(textsToTranslate, toLanguage, fromLanguage);
     googleTranslation.data.translations.forEach(element => {
       textsTranslated.push(element.translatedText)
-    })
+    });
   } else if (TRANSLATOR === 'microsoft') {
-    const microsoftTranslation = await translateMicrosoft(textsToTranslate, toLanguage, fromLanguage)
+    const microsoftTranslation = await translateMicrosoft(textsToTranslate, toLanguage, fromLanguage);
     microsoftTranslation.forEach(element => {
       textsTranslated.push(element.translations[0].text)
-    })
+    });
+  } else if (TRANSLATOR === 'deepl') {
+    const deeplTranslation = await translateDeepL(textsToTranslate, toLanguage, fromLanguage);
+    deeplTranslation.translations.forEach(element => {
+      textsTranslated.push(element.text);
+    });
   }
 
   return textsTranslated
@@ -169,7 +268,7 @@ async function translateBotMessage(data: any, userLanguage: string) {
     })
   }
 
-  return data
+  return data;
 }
 
 createSocketTransformer({
@@ -177,12 +276,12 @@ createSocketTransformer({
     const sessionStorage = await getSessionStorage(payload.userId, payload.sessionId)
 
     if (payload?.data?.language) { // Current message from the user contains the desired language in the data payload
-      sessionStorage.language = payload.data.language
+      sessionStorage.language = payload.data.language;
     }
 
-    const userText = payload?.text
+    const userText = payload?.text;
 
-    let translatedText
+    let translatedText;
     if (!userText) {
       // There is no text in this message, e.g. this is a data-only message from a webchat extension
       translatedText = userText
@@ -195,7 +294,7 @@ createSocketTransformer({
         // User language detection is off AND the user language is known 
         googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE, sessionStorage.language)
       } else { // Let Google Translate API detect the language automatically
-        googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE) // Let the translate API detect the language
+        googleTranslation = await translateGoogle([payload.text], FLOW_LANGUAGE); // Let the translate API detect the language
       }
 
       if (googleTranslation.data?.translations[0]?.detectedSourceLanguage) { // Remember the detected language in the session storage
@@ -208,13 +307,27 @@ createSocketTransformer({
         // User language detection is off AND the user language is known 
         microsoftTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE, sessionStorage.language)
       } else { // Let Microsoft Translate API detect the language automatically
-        microsoftTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE)
+        microsoftTranslation = await translateMicrosoft([payload.text], FLOW_LANGUAGE);
       }
 
       if (microsoftTranslation[0]?.detectedLanguage?.language) { // Remember the detected language in the session storage
         sessionStorage.detectedLanguage = microsoftTranslation[0].detectedLanguage.language
       }
       translatedText = microsoftTranslation[0].translations[0].text
+    } else if (TRANSLATOR === 'deepl') {
+      let deeplTranslation;
+      if (sessionStorage.language && !AUTO_DETECT_LANGUAGE) {
+        // User language detection is off AND the user language is known
+        deeplTranslation = await translateDeepL([payload.text], FLOW_LANGUAGE, sessionStorage.language);
+      } else { // Let DeepL Translate API detect the language automatically
+        deeplTranslation = await translateDeepL([payload.text], FLOW_LANGUAGE);
+      }
+
+      if (deeplTranslation.translations[0]?.detected_source_language) {
+        sessionStorage.detectedLanguage = deeplTranslation.translations[0]?.detected_source_language;
+      }
+
+      translatedText = deeplTranslation.translations[0].text;
     }
 
     return {
