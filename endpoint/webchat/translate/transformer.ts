@@ -120,17 +120,21 @@ async function translateMicrosoft(textArray: string[], toLanguage: string, fromL
  */
 async function translateDeepL(textArray: string[], toLanguage: string, fromLanguage?: string): Promise<ITranslateDeepLPromise> {
 
-  // Initialize string for HTTP text query paramters -> &text=...&text=...
-  let textQueryString: string = '';
+  // Initialize string for various query parameters
+  let urlEnding: string = '';
+
+  if(fromLanguage) {
+    urlEnding += `&source_lang=${fromLanguage.toUpperCase()}`
+  }
 
   // Build the text query string/s based on the number of texts in the array
   textArray.forEach(text => {
-    textQueryString += `&text=${text}`
+    urlEnding += `&text=${text}`
   })
 
   return await httpRequest({
     method: 'POST',
-    uri: `https://api.deepl.com/v2/translate?auth_key=${TRANSLATOR_API_KEY}&target_lang=${toLanguage}${textQueryString}`,
+    uri: `https://api.deepl.com/v2/translate?auth_key=${TRANSLATOR_API_KEY}&target_lang=${toLanguage.toUpperCase()}${urlEnding}`,
     headers: {
       'Accept': '*/*',
       'Content-Type': 'application/x-www-form-urlencoded'
@@ -266,6 +270,46 @@ async function translateBotMessage(data: any, userLanguage: string) {
         })
       }
     })
+  }
+
+  const datePicker = data?.data?._plugin?.data
+  if (datePicker) { // Translate a date-picker message
+    if (datePicker.locale) {
+      datePicker.locale = userLanguage.substring(0, 3)
+    }
+
+    const textsToTranslate = []
+    if (datePicker.eventName) {
+      textsToTranslate.push(datePicker.eventName)
+    }
+    if (datePicker.openPickerButtonText) {
+      textsToTranslate.push(datePicker.openPickerButtonText)
+    }
+    if (datePicker.cancelButtonText) {
+      textsToTranslate.push(datePicker.cancelButtonText)
+    }
+    if (datePicker.submitButtonText) {
+      textsToTranslate.push(datePicker.submitButtonText)
+    }
+
+    const textsTranslated = await translate(textsToTranslate, userLanguage, FLOW_LANGUAGE)
+
+    if (datePicker.eventName) {
+      const index = textsToTranslate.indexOf(datePicker.eventName)
+      datePicker.eventName = textsTranslated[index]
+    }
+    if (datePicker.openPickerButtonText) {
+      const index = textsToTranslate.indexOf(datePicker.openPickerButtonText)
+      datePicker.openPickerButtonText = textsTranslated[index]
+    }
+    if (datePicker.cancelButtonText) {
+      const index = textsToTranslate.indexOf(datePicker.cancelButtonText)
+      datePicker.cancelButtonText = textsTranslated[index]
+    }
+    if (datePicker.submitButtonText) {
+      const index = textsToTranslate.indexOf(datePicker.submitButtonText)
+      datePicker.submitButtonText = textsTranslated[index]
+    }
   }
 
   return data;
