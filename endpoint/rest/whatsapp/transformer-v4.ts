@@ -103,6 +103,7 @@ type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsApp
 interface IDefaultQuickReply {
 	title: string;
 	payload: string;
+	contentType: string;
 }
 
 interface ISessionStorageQuickReply {
@@ -355,7 +356,11 @@ createRestTransformer({
 		for (let sessionQuickReply of sessionQuickReplies) {
 			// the user can send the number or the title of a quick reply
 			if (text.toLowerCase().includes(sessionQuickReply.index) || text.toLowerCase().includes(sessionQuickReply.quickReply.title.toLowerCase())) {
-				text = sessionQuickReply.quickReply.payload;
+				if (sessionQuickReply.quickReply.contentType === "trigger_intent") {
+					text = sessionQuickReply.quickReply.title;
+				} else {
+					text = sessionQuickReply.quickReply.payload;
+				}
 			}
 		}
 
