@@ -326,12 +326,13 @@ createSocketTransformer({
     const userText = payload?.text;
 
     let translatedText;
-    if (!userText) {
-      // There is no text in this message, e.g. this is a data-only message from a webchat extension
-      translatedText = userText
+    if (!userText) { // There is no text in this message, e.g. this is a data-only message from a webchat extension
+      return null // To avoid triggering NLU on data-only messages
     } else if (userText.startsWith(NO_TRANSLATE_PREFFIX)) {
       // Neither translate nor detect language when processing a postback
       translatedText = userText.substring(NO_TRANSLATE_PREFFIX.length)  // Remove the NO_TRANSLATE_PREFFIX from the user message
+    } else if (!AUTO_DETECT_LANGUAGE && FLOW_LANGUAGE === sessionStorage.language) { // Source and destination language are the same
+      translatedText = userText // Just forward the user text to the flow without translating it
     } else if (TRANSLATOR === 'google') {
       let googleTranslation
       if (sessionStorage.language && !AUTO_DETECT_LANGUAGE) {
