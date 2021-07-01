@@ -13,6 +13,11 @@ const AUTO_DETECT_LANGUAGE = true;
 // Added to postbacks. If the user message starts with it, it is removed from the message and the message is not translated
 const NO_TRANSLATE_PREFFIX = 'NoTranslate:';
 
+// Translate API base URLs
+const GOOGLE_BASE_URL = `https://translation.googleapis.com/language/translate/v2?key=${TRANSLATOR_API_KEY}`
+const MICROSOFT_BASE_URL = 'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0'
+const DEEPL_BASE_URL = `https://api.deepl.com/v2/translate?auth_key=${TRANSLATOR_API_KEY}`
+
 /**
  * INTERFACES
  */
@@ -73,7 +78,7 @@ async function translateGoogle(textArray: string[], toLanguage: string, fromLang
 
   return await httpRequest({
     method: 'POST',
-    uri: `https://translation.googleapis.com/language/translate/v2?key=${TRANSLATOR_API_KEY}`,
+    uri: GOOGLE_BASE_URL,
     headers: { 'Content-type': 'application/json' },
     body: body,
     json: true
@@ -93,7 +98,7 @@ async function translateMicrosoft(textArray: string[], toLanguage: string, fromL
     body.push({ 'Text': text })
   });
 
-  let uri = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${toLanguage}`
+  let uri = `${MICROSOFT_BASE_URL}&to=${toLanguage}`
   if (fromLanguage) {
     uri += `&from=${fromLanguage}`
   }
@@ -104,8 +109,6 @@ async function translateMicrosoft(textArray: string[], toLanguage: string, fromL
     headers: {
       'Ocp-Apim-Subscription-Key': TRANSLATOR_API_KEY,
       'Content-type': 'application/json'//,
-      // 'Accept': 'application/json',
-      // 'X-ClientTraceId': uuid.v4().toString()
     },
     body: body,
     json: true
@@ -123,7 +126,7 @@ async function translateDeepL(textArray: string[], toLanguage: string, fromLangu
   // Initialize string for various query parameters
   let urlEnding: string = '';
 
-  if(fromLanguage) {
+  if (fromLanguage) {
     urlEnding += `&source_lang=${fromLanguage.toUpperCase()}`
   }
 
@@ -134,7 +137,7 @@ async function translateDeepL(textArray: string[], toLanguage: string, fromLangu
 
   return await httpRequest({
     method: 'POST',
-    uri: `https://api.deepl.com/v2/translate?auth_key=${TRANSLATOR_API_KEY}&target_lang=${toLanguage.toUpperCase()}${urlEnding}`,
+    uri: `${DEEPL_BASE_URL}&target_lang=${toLanguage.toUpperCase()}${urlEnding}`,
     headers: {
       'Accept': '*/*',
       'Content-Type': 'application/x-www-form-urlencoded'
@@ -318,16 +321,18 @@ async function translateBotMessage(data: any, userLanguage: string) {
 createSocketTransformer({
   handleInput: async ({ payload, endpoint }) => {
     const sessionStorage = await getSessionStorage(payload.userId, payload.sessionId)
+    const userText = payload?.text;
 
     if (payload?.data?.language) { // Current message from the user contains the desired language in the data payload
       sessionStorage.language = payload.data.language;
+      if (!userText) { // This is a data-only message intended to change the user language setting in this code
+        return null // To avoid triggering NLU and the flow
+      }
     }
-
-    const userText = payload?.text;
 
     let translatedText;
     if (!userText) { // There is no text in this message, e.g. this is a data-only message from a webchat extension
-      return null // To avoid triggering NLU on data-only messages
+      // Don't do any translation, just forward the data back to the flow
     } else if (userText.startsWith(NO_TRANSLATE_PREFFIX)) {
       // Neither translate nor detect language when processing a postback
       translatedText = userText.substring(NO_TRANSLATE_PREFFIX.length)  // Remove the NO_TRANSLATE_PREFFIX from the user message
