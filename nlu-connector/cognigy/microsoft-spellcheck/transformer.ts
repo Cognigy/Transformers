@@ -2,6 +2,9 @@
 // API Docs: https://docs.microsoft.com/de-de/azure/cognitive-services/bing-spell-check/quickstarts/nodejs
 const API_KEY: string = "";
 
+// Score threshold
+// A number between 0 and 1.
+const THRESHOLD: number = 0.7;
 
 createNluTransformer({
 	preNlu: async ({ text, data, language }) => {
@@ -21,11 +24,17 @@ createNluTransformer({
 			const result = await httpRequest(requestBody);
 
 			// Check if a spelling suggestion is provided in the result object
-			if (result?.flaggedTokens[0]?.suggestions) {
+			if (
+				result?.flaggedTokens[0]?.suggestions
+				&&
+				result?.flaggedTokens[0]?.suggestions[0]?.score >= THRESHOLD
+			) {
 				// Overwrite the initial user text with the first found suggestion
 				const suggestion = result.flaggedTokens[0].suggestions[0].suggestion;
-				// Store the detailed result in input.data
-				data["spellcheck"] = result.flaggedTokens;
+				// Store the detailed result in input.data.spellcheck
+				data["spellcheck"] = result;
+				// Store the initial user text in input.data.spellcheck.initialText
+				data["spellcheck"]["initialText"] = text;
 
 				return {
 					text: suggestion,
