@@ -29,15 +29,21 @@ createNluTransformer({
 				&&
 				result?.flaggedTokens[0]?.suggestions[0]?.score >= THRESHOLD
 			) {
-				// Overwrite the initial user text with the first found suggestion
-				const suggestion = result.flaggedTokens[0].suggestions[0].suggestion;
+
+				let suggestedText: string = text;
+
+				// Loop through the suggested results and change the initial text
+				for (let suggestionResult of result.flaggedTokens) {
+					suggestedText = suggestedText.replace(suggestionResult.token, suggestionResult.suggestions[0].suggestion);
+				}
+
 				// Store the detailed result in input.data.spellcheck
 				data["spellcheck"] = result;
 				// Store the initial user text in input.data.spellcheck.initialText
 				data["spellcheck"]["initialText"] = text;
 
 				return {
-					text: suggestion,
+					text: suggestedText,
 					data
 				};
 			}
