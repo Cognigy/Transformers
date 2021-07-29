@@ -10,7 +10,7 @@ createNluTransformer({
 	preNlu: async ({ text, data, language }) => {
 
 		const requestBody = {
-			'uri': `https://api.cognitive.microsoft.com/bing/v7.0/spellcheck?mkt=${language}&mode=proof&text=${text}`,
+			'uri': `https://api.cognitive.microsoft.com/bing/v7.0/spellcheck?mkt=${language}&setLang=${language}&mode=spell&text=${text}`,
 			'method': "GET",
 			'headers': {
 				'Accept': 'application/json',
