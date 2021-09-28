@@ -2,9 +2,10 @@
 
 <img src="./docs/whatsapp.svg" width="30%">
 
-This [Transformer Function](https://docs.cognigy.com/docs/transformers) converts the Webchat (Version 3) or the Default (Version 4) content of your [Say Node](https://docs.cognigy.com/docs/say-nodes) to valid [WhatsApp](https://www.whatsapp.com/) messages. 
+This [Transformer Function](https://docs.cognigy.com/docs/transformers) converts the Default content of your [Say Node](https://docs.cognigy.com/docs/say-nodes) to valid [WhatsApp](https://www.whatsapp.com/) messages. 
 
-- [The same Transformer is available as Webhook version as well](../../webhook/tyntec-whatsapp)
+- [The same Transformer is available as REST version as well](../../rest/whatsapp)
+
 
 ## Provided Message Types
 
