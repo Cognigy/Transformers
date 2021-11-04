@@ -10,11 +10,13 @@
  * }
 */
 
+// const TYNTEC_API_KEY = "PYvD7k3JEzaD6rZwvky7zaLXSt5AluUy"; // Tyntec API Key
+
 const TYNTEC_API_KEY = ""; // Tyntec API Key
 
 //session timeout in seconds, new session gets generated afterwards
 //disable by setting to 0
-const SESSION_TIMEOUT = 1800
+const SESSION_TIMEOUT = 30;
 
 const HIDE_USER_ID = true
 const HIDE_SESSION_ID = true
@@ -53,6 +55,28 @@ interface IWhatsAppLocation {
 	address: string;
 }
 
+interface IWhatsAppQuickReplyMessage extends IWhatsAppMessageBase {
+	contentType: 'interactive';
+	interactive: {
+		subType: 'buttons';
+		components: {
+			body: {
+				type: 'text';
+				text: string;
+			},
+			buttons: IWhatsAppQuickReply[];
+		}
+	}
+}
+
+interface IWhatsAppQuickReply {
+	type: 'reply';
+	reply: {
+		payload: string;
+		title: string;
+	}
+}
+
 interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
 	contentType: 'template';
 	template: {
@@ -63,6 +87,17 @@ interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
 		};
 		components: TWhatsAppTemplateComponent[];
 	};
+}
+
+interface IWhatsAppListSection {
+	title: string;
+	rows: IWhatsAppListSectionRow[]
+}
+
+interface IWhatsAppListSectionRow {
+	payload: string;
+	title: string;
+	description: string;
 }
 
 type TWhatsAppTemplateComponent = IWhatsAppTemplateHeaderComponent | IWhatsAppTemplateBodyComponent | IWhatsAppTemplateButtonComponent;
@@ -94,7 +129,7 @@ interface IWhatsAppTemplateComponentTextParameter {
 	text: string;
 }
 
-type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage | IWhatsAppLocationMessage;
+type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | any;
 
 /**
  * Webchat Interface
@@ -111,33 +146,23 @@ interface ISessionStorageQuickReply {
 	quickReply: IDefaultQuickReply;
 }
 
-const createWhatsAppQuickReplies = (quickReplies: IDefaultQuickReply[], sessionStorage: any): string => {
+const createWhatsAppQuickReplies = (quickReplies: IDefaultQuickReply[]): IWhatsAppQuickReply[] => {
 
-	// get previous quick replies from session storage 
-	let sessionquickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 0;
-	let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
-
-	// initialize empty text message bubble
-	let whatsAppQuickReplyMessage: string = "";
+	let whatsAppQuickReplies: IWhatsAppQuickReply[] = [];
 
 	for (let quickReply of quickReplies) {
-		// store the index to the session storage for further quick replies
-		sessionquickReplyCurrentNumber += 1;
-		sessionQuickReplies.push({
-			index: sessionquickReplyCurrentNumber,
-			quickReply
-		})
-		// add the quick reply to the text message bubble
-		// Example: 1. first quick reply
-		whatsAppQuickReplyMessage += `\n${sessionquickReplyCurrentNumber}. ${quickReply.title}`;
-
+		whatsAppQuickReplies.push({
+			type: "reply",
+			reply: {
+				payload: quickReply.payload,
+				title: quickReply.title
+			}
+		});
 	}
 
-	sessionStorage.quickReplyCurrentNumber = sessionquickReplyCurrentNumber;
-	sessionStorage.quickReplies = sessionQuickReplies;
-
-	return whatsAppQuickReplyMessage;
+	return whatsAppQuickReplies;
 }
+
 
 const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStorage: any): TWhatsAppContent[] => {
 
@@ -204,11 +229,19 @@ const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStora
 				if (element.buttons?.length) {
 					const galleryItemQuickReplies = element.buttons;
 
-					// create quick replies message as message bubble
 					whatsAppContents.push({
 						from: sessionId,
-						contentType: "text",
-						text: createWhatsAppQuickReplies(galleryItemQuickReplies, sessionStorage)
+						contentType: "interactive",
+						interactive: {
+							subType: "buttons",
+							components: {
+								body: {
+									type: "text",
+									text: "Please select:"
+								},
+								buttons: createWhatsAppQuickReplies(galleryItemQuickReplies)
+							}
+						}
 					});
 				}
 			}
@@ -219,18 +252,19 @@ const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStora
 			let text: string = defaultContent._quickReplies.text;
 			let quickReplies: IDefaultQuickReply[] = defaultContent._quickReplies.quickReplies;
 
-			// create quick reply title message
 			whatsAppContents.push({
 				from: sessionId,
-				contentType: "text",
-				text: text
-			});
-
-			// create quick replies message as message bubble
-			whatsAppContents.push({
-				from: sessionId,
-				contentType: "text",
-				text: createWhatsAppQuickReplies(quickReplies, sessionStorage)
+				contentType: "interactive",
+				interactive: {
+					subType: "buttons",
+					components: {
+						body: {
+							type: "text",
+							text
+						},
+						buttons: createWhatsAppQuickReplies(quickReplies)
+					}
+				}
 			});
 		}
 
@@ -293,8 +327,6 @@ createWebhookTransformer({
 	 */
 	handleInput: async ({ endpoint, request, response }) => {
 
-		console.log(JSON.stringify(request.body));
-
 		// handle accepted Tyntec WhatsApp messages
 		if (request.body.status) {
 			response.sendStatus(200);
@@ -342,25 +374,15 @@ createWebhookTransformer({
 		processedSessionStorage.clearUserId = clearUserId
 		processedSessionStorage.clearSessionId = clearSessionId
 
-		let text = request.body.content.text;
+		let text: string;
 		const data = request.body;
 
-		// check if the user chose a quick reply by inserting a number that fits a stored reply
-		let sessionQuickReplies: ISessionStorageQuickReply[] = processedSessionStorage.quickReplies || [];
-
-		// compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
-		for (let sessionQuickReply of sessionQuickReplies) {
-			// the user can send the number or the title of a quick reply
-			if (text.toLowerCase().includes(sessionQuickReply.index) || text.toLowerCase().includes(sessionQuickReply.quickReply.title.toLowerCase())) {
-				if (sessionQuickReply.quickReply.contentType === "trigger_intent") {
-					text = sessionQuickReply.quickReply.title;
-				} else {
-					text = sessionQuickReply.quickReply.payload;
-				}
-			}
+		// Check if quick reply button was clicked
+		if (request?.body?.postback?.data) {
+			text = request.body.postback.data;
+		} else {
+			text = request.body.content.text;
 		}
-
-
 
 		return {
 			userId,
@@ -491,10 +513,12 @@ createWebhookTransformer({
 		 * every Endpoint, and the example above needs to be adjusted
 		 * accordingly.
 		 */
-		const userId = "";
-		const sessionId = "";
-		const text = "";
-		const data = {}
+		const userId = undefined;
+		const sessionId = undefined;
+		const text = undefined;
+		const data = {
+			timeout: true
+		}
 
 		return {
 			userId,
