@@ -17,12 +17,6 @@ This [Transformer Function](https://docs.cognigy.com/docs/transformers) converts
     - [Gallery](#gallery)
     - [Quick Reply](#quick-reply)
     - [Location](#location)
-  - [Cognigy.AI Version 3](#cognigyai-version-3)
-    - [Text](#text-1)
-    - [Attachments](#attachments)
-    - [Gallery](#gallery-1)
-    - [Quick Reply](#quick-reply-1)
-    - [Location](#location-1)
 
 ## Cognigy.AI Version 4
 
