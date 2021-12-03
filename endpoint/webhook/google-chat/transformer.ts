@@ -1,11 +1,11 @@
-
 interface IGoogleChatMessageMessageSender {
 	name: string;
 	displayName: string;
-	avatarUrl: string;
+	avatarUrl?: string;
 	type: "HUMAN" | string;
 	domainId: string
 	email?: string;
+	isAnonymous?: boolean;
 }
 
 interface IGoogleChatMessageMessageThread {
@@ -47,6 +47,57 @@ interface IGoogleChatMessage {
 	configCompleteRedirectUrl: string;
 }
 
+interface ICognigyBasicMessage {
+	space: IGoogleChatMessageMessageSpace;
+	thread: IGoogleChatMessageMessageThread;
+	name: string;
+	sender?: IGoogleChatMessageMessageSender;
+}
+
+interface ICognigyDefaultQuickReply {
+	id: string;
+	title: string;
+	imageAltText: string;
+	imageUrl: string;
+	contentType: "postback";
+	payload: string;
+}
+
+interface ICognigyDefaultButton {
+	id: string;
+	title: string;
+	type: "web_url",
+	url: string;
+	target: string;
+}
+
+interface IGoogleChatCardActionButton {
+	textButton: {
+		text: string;
+		onClick: {
+			action: {
+				actionMethodName: string;
+				parameters: any[]
+			}
+		}
+	}
+}
+
+interface IGoogleChatCardUrlButton {
+	textButton: {
+		text: string;
+		onClick: {
+			openLink: {
+				url: string;
+			}
+		}
+	}
+}
+
+/**
+ * Generates a random UUID
+ * @return {string} `ID` Random UUID
+ */
 function generateGoogleChatMessageId() {
 	var d = new Date().getTime();//Timestamp
 	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -57,6 +108,184 @@ function generateGoogleChatMessageId() {
 		}
 		return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
 	});
+}
+
+/**
+ * Transforms a Cognigy default quick reply into a valid Google Chat button
+ * @param {array} `quickReplies` Cognigy.AI default quick replies
+ */
+function generateGoogleChatActionButtons(quickReplies: ICognigyDefaultQuickReply[]): IGoogleChatCardActionButton[] {
+
+	let actionButtons: IGoogleChatCardActionButton[] = [];
+
+	for (let quickReply of quickReplies) {
+		actionButtons.push({
+			textButton: {
+				text: quickReply.title,
+				onClick: {
+					action: {
+						actionMethodName: quickReply.contentType,
+						parameters: [
+							{
+								key: quickReply.title,
+								value: quickReply.payload
+							}
+						]
+					}
+				}
+			}
+		})
+	}
+
+	return actionButtons;
+}
+
+/**
+ * Transforms a Cognigy default button into a valid Google Chat button
+ * @param {array} `buttons` Cognigy.AI default buttons
+ */
+function generateGoogleChatUrlButtons(buttons: ICognigyDefaultButton[]): IGoogleChatCardUrlButton[] {
+
+	let urlButtons: IGoogleChatCardUrlButton[] = [];
+
+	for (let button of buttons) {
+		urlButtons.push({
+			textButton: {
+				text: button.title,
+				onClick: {
+					openLink: {
+						url: button.url
+					}
+				}
+			}
+		})
+	}
+
+	return urlButtons;
+}
+
+/**
+ * Transforms a Cognigy default "Text with Quick Replies" message into a valid Google Chat Buttons Card
+ * @param {array} `quickReplies` Cognigy.AI default quick replies
+ * @param {string} `text` The Cognigy.AI default header text message of the quick reply message
+ * @param {string} `fallbackText` The Cognigy.AI default fallback text message
+ */
+function generateGoogleChatQuickReplyCard(quickReplies: ICognigyDefaultQuickReply[], text: string, fallbackText: string): any {
+
+	return {
+		sections: [
+			{
+				widgets: [
+					{
+						textParagraph: {
+							text
+						}
+					}
+				]
+			},
+			{
+				widgets: [
+					{
+						buttons: generateGoogleChatActionButtons(quickReplies)
+					}
+				]
+			}
+		]
+	}
+}
+
+/**
+ * Transforms a Cognigy default "Text with Buttons" message into a valid Google Chat Buttons Card
+ * @param {array} `buttons` Cognigy.AI default buttons
+ * @param {string} `text` The Cognigy.AI default header text message of the button message
+ * @param {string} `fallbackText` The Cognigy.AI default fallback text message
+ */
+function generateGoogleChatButtonCard(buttons: ICognigyDefaultButton[], text: string, fallbackText: string): any {
+
+	return {
+		sections: [
+			{
+				widgets: [
+					{
+						textParagraph: {
+							text
+						}
+					}
+				]
+			},
+			{
+				widgets: [
+					{
+						buttons: generateGoogleChatUrlButtons(buttons)
+					}
+				]
+			}
+		]
+	}
+}
+
+/**
+ * Transforms the Cognigy default output into a valid Google Chat message
+ * @param {object} `output` The Cognigy.AI Flow output object
+ * @param {string} `userId` The Cognigy.AI user ID
+ * @param {string} `sessionId` The Cognigy.AI session ID
+ */
+async function generateGoogleChatMessage(output: IProcessOutputData, userId: string, sessionId: string): Promise<any> {
+
+	let sessionStorage = await getSessionStorage(userId, sessionId);
+
+	const basicMessage: ICognigyBasicMessage = {
+		space: sessionStorage.space,
+		thread: sessionStorage.thread,
+		name: `${sessionId}/messages/${generateGoogleChatMessageId()}`
+	}
+
+	// Check for simple text
+	if (output?.text) {
+		return {
+			...basicMessage,
+			text: output?.text,
+			argumentText: output?.text,
+			fallbackText: output?.text,
+			attachment: [],
+			annotations: [],
+			cards: []
+		}
+	}
+	// Check for quick replies
+	else if (output?.data?._cognigy?._default?._quickReplies) {
+		const quickReplies: ICognigyDefaultQuickReply[] = output.data._cognigy._default._quickReplies.quickReplies;
+		const text: string = output.data._cognigy._default._quickReplies.text;
+		const fallbackText: string = output.data._cognigy._default._quickReplies.fallbackText;
+
+		return {
+			...basicMessage,
+			text: fallbackText,
+			argumentText: fallbackText,
+			fallbackText: fallbackText,
+			attachment: [],
+			annotations: [],
+			cards: [generateGoogleChatQuickReplyCard(quickReplies, text, fallbackText)]
+		}
+	}
+	// Check for buttons
+	else if (output?.data?._cognigy?._default?._buttons) {
+		const buttons: ICognigyDefaultButton[] = output.data._cognigy._default._buttons.buttons;
+		const text: string = output.data._cognigy._default._buttons.text;
+		const fallbackText: string = output.data._cognigy._default._buttons.fallbackText;
+
+		return {
+			...basicMessage,
+			text: fallbackText,
+			argumentText: fallbackText,
+			fallbackText: fallbackText,
+			attachment: [],
+			annotations: [],
+			cards: [generateGoogleChatButtonCard(buttons, text, fallbackText)]
+		}
+	} else {
+		return null;
+	}
 }
 
 createWebhookTransformer({
@@ -103,35 +332,20 @@ createWebhookTransformer({
 			sessionStorage.auth = output.data.auth;
 		}
 
-		if (sessionStorage?.auth?.access_token && output?.text?.length !== 0) {
+		// Generate Google Chat message from Cognigy Default message output
+		const cognigyMessage = await generateGoogleChatMessage(output, userId, sessionId);
+
+		if (sessionStorage?.auth?.access_token && cognigyMessage !== null) {
 			try {
 				const messageResponse = await httpRequest({
 					uri: `https://chat.googleapis.com/v1/${sessionId}/messages`,
 					method: "POST",
 					headers: {
 						'Content-Type': 'application/json; charset=UTF-8',
-						// 'Content-Type': 'application/x-www-form-urlencoded',
 						'Accept': 'application/json',
 						'Authorization': `Bearer ${sessionStorage?.auth?.access_token}`
 					},
-					body: {
-						space: sessionStorage.space,
-						thread: sessionStorage.thread,
-						name: `${sessionId}/messages/${generateGoogleChatMessageId()}`,
-						sender: {
-							name: "Cognigy",
-							displayName: "Cognigy",
-							domainId: sessionStorage.user.domainId,
-							type: "HUMAN",
-							isAnonymous: false
-						},
-						text: output?.text,
-						argumentText: output?.text,
-						fallbackText: output?.text,
-						attachment: [],
-						annotations: [],
-						cards: []
-					},
+					body: cognigyMessage,
 					json: true
 				});
 
