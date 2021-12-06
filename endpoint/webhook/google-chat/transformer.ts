@@ -245,8 +245,8 @@ async function generateGoogleChatMessage(output: IProcessOutputData, userId: str
 		return {
 			...basicMessage,
 			text: output?.text,
-			argumentText: output?.text,
-			fallbackText: output?.text,
+			argumentText: "",
+			fallbackText: "",
 			attachment: [],
 			annotations: [],
 			cards: []
@@ -261,8 +261,8 @@ async function generateGoogleChatMessage(output: IProcessOutputData, userId: str
 		return {
 			...basicMessage,
 			text: fallbackText,
-			argumentText: fallbackText,
-			fallbackText: fallbackText,
+			argumentText: "",
+			fallbackText: "",
 			attachment: [],
 			annotations: [],
 			cards: [generateGoogleChatQuickReplyCard(quickReplies, text, fallbackText)]
@@ -277,8 +277,8 @@ async function generateGoogleChatMessage(output: IProcessOutputData, userId: str
 		return {
 			...basicMessage,
 			text: fallbackText,
-			argumentText: fallbackText,
-			fallbackText: fallbackText,
+			argumentText: "",
+			fallbackText: "",
 			attachment: [],
 			annotations: [],
 			cards: [generateGoogleChatButtonCard(buttons, text, fallbackText)]
@@ -293,17 +293,25 @@ createWebhookTransformer({
 
 		let userId = undefined;
 		let sessionId = undefined;
-		let text = undefined;
+		let text = "";
 		let data = {}
 
+		console.log(JSON.stringify(request.body))
+
 		// Check if Google Chat Message is incoming
-		if (request?.body?.type === "MESSAGE") {
+		if (request?.body?.type === "MESSAGE" || request?.body?.type === "CARD_CLICKED") {
 
 			const googleChatMessage: IGoogleChatMessage = request.body;
 
+			// Check if user clicked a button on a card (Quick Reply)
+			if (request.body?.action?.actionMethodName === "postback" && request?.body?.action?.parameters) {
+				text = request.body.action.parameters[0].value;
+			} else {
+				text = googleChatMessage.message.text;
+			}
+
 			userId = googleChatMessage.user.name;
 			sessionId = googleChatMessage.space.name;
-			text = googleChatMessage.message.text;
 			data = googleChatMessage
 
 			// Store general mesasge info in session storage
@@ -356,6 +364,8 @@ createWebhookTransformer({
 			}
 		}
 
-		return null;
+		return {
+			text: ""
+		};
 	}
 })
