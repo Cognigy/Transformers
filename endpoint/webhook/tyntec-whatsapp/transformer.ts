@@ -10,11 +10,13 @@
  * }
 */
 
+// const TYNTEC_API_KEY = "PYvD7k3JEzaD6rZwvky7zaLXSt5AluUy"; // Tyntec API Key
+
 const TYNTEC_API_KEY = ""; // Tyntec API Key
 
 //session timeout in seconds, new session gets generated afterwards
 //disable by setting to 0
-const SESSION_TIMEOUT = 1800
+const SESSION_TIMEOUT = 1800;
 
 const HIDE_USER_ID = true
 const HIDE_SESSION_ID = true
@@ -53,6 +55,28 @@ interface IWhatsAppLocation {
 	address: string;
 }
 
+interface IWhatsAppQuickReplyMessage extends IWhatsAppMessageBase {
+	contentType: 'interactive';
+	interactive: {
+		subType: 'buttons';
+		components: {
+			body: {
+				type: 'text';
+				text: string;
+			},
+			buttons: IWhatsAppQuickReply[];
+		}
+	}
+}
+
+interface IWhatsAppQuickReply {
+	type: 'reply';
+	reply: {
+		payload: string;
+		title: string;
+	}
+}
+
 interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
 	contentType: 'template';
 	template: {
@@ -63,6 +87,17 @@ interface IWhatsAppTemplateMessage extends IWhatsAppMessageBase {
 		};
 		components: TWhatsAppTemplateComponent[];
 	};
+}
+
+interface IWhatsAppListSection {
+	title: string;
+	rows: IWhatsAppListSectionRow[]
+}
+
+interface IWhatsAppListSectionRow {
+	payload: string;
+	title: string;
+	description: string;
 }
 
 type TWhatsAppTemplateComponent = IWhatsAppTemplateHeaderComponent | IWhatsAppTemplateBodyComponent | IWhatsAppTemplateButtonComponent;
@@ -94,7 +129,7 @@ interface IWhatsAppTemplateComponentTextParameter {
 	text: string;
 }
 
-type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage | IWhatsAppLocationMessage;
+type TWhatsAppContent = IWhatsAppTextMessage | IWhatsAppMediaMessage | IWhatsAppTemplateMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | any;
 
 /**
  * Webchat Interface
@@ -111,33 +146,23 @@ interface ISessionStorageQuickReply {
 	quickReply: IDefaultQuickReply;
 }
 
-const createWhatsAppQuickReplies = (quickReplies: IDefaultQuickReply[], sessionStorage: any): string => {
+const createWhatsAppQuickReplies = (quickReplies: IDefaultQuickReply[]): IWhatsAppQuickReply[] => {
 
-	// get previous quick replies from session storage 
-	let sessionquickReplyCurrentNumber: number = sessionStorage.quickReplyCurrentNumber || 0;
-	let sessionQuickReplies: ISessionStorageQuickReply[] = sessionStorage.quickReplies || [];
-
-	// initialize empty text message bubble
-	let whatsAppQuickReplyMessage: string = "";
+	let whatsAppQuickReplies: IWhatsAppQuickReply[] = [];
 
 	for (let quickReply of quickReplies) {
-		// store the index to the session storage for further quick replies
-		sessionquickReplyCurrentNumber += 1;
-		sessionQuickReplies.push({
-			index: sessionquickReplyCurrentNumber,
-			quickReply
-		})
-		// add the quick reply to the text message bubble
-		// Example: 1. first quick reply
-		whatsAppQuickReplyMessage += `\n${sessionquickReplyCurrentNumber}. ${quickReply.title}`;
-
+		whatsAppQuickReplies.push({
+			type: "reply",
+			reply: {
+				payload: quickReply.payload,
+				title: quickReply.title
+			}
+		});
 	}
 
-	sessionStorage.quickReplyCurrentNumber = sessionquickReplyCurrentNumber;
-	sessionStorage.quickReplies = sessionQuickReplies;
-
-	return whatsAppQuickReplyMessage;
+	return whatsAppQuickReplies.slice(0,3);
 }
+
 
 const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStorage: any): TWhatsAppContent[] => {
 
@@ -204,11 +229,19 @@ const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStora
 				if (element.buttons?.length) {
 					const galleryItemQuickReplies = element.buttons;
 
-					// create quick replies message as message bubble
 					whatsAppContents.push({
 						from: sessionId,
-						contentType: "text",
-						text: createWhatsAppQuickReplies(galleryItemQuickReplies, sessionStorage)
+						contentType: "interactive",
+						interactive: {
+							subType: "buttons",
+							components: {
+								body: {
+									type: "text",
+									text: "Please select:"
+								},
+								buttons: createWhatsAppQuickReplies(galleryItemQuickReplies)
+							}
+						}
 					});
 				}
 			}
@@ -219,18 +252,19 @@ const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStora
 			let text: string = defaultContent._quickReplies.text;
 			let quickReplies: IDefaultQuickReply[] = defaultContent._quickReplies.quickReplies;
 
-			// create quick reply title message
 			whatsAppContents.push({
 				from: sessionId,
-				contentType: "text",
-				text: text
-			});
-
-			// create quick replies message as message bubble
-			whatsAppContents.push({
-				from: sessionId,
-				contentType: "text",
-				text: createWhatsAppQuickReplies(quickReplies, sessionStorage)
+				contentType: "interactive",
+				interactive: {
+					subType: "buttons",
+					components: {
+						body: {
+							type: "text",
+							text
+						},
+						buttons: createWhatsAppQuickReplies(quickReplies)
+					}
+				}
 			});
 		}
 
@@ -279,21 +313,7 @@ const convertWebchatContentToWhatsApp = (output, sessionId: string, sessionStora
 }
 
 createWebhookTransformer({
-
-	/**
-	 * This transformer is executed when receiving a message
-	 * from the user, before executing the Flow.
-	 *
-	 * @param endpoint The configuration object for the used Endpoint.
-	 * @param request The Express request object with a JSON parsed body.
-	 * @param response The Express response object.
-	 *
-	 * @returns A valid userId, sessionId, as well as text and/or data,
-	 * which has been extracted from the request body.
-	 */
 	handleInput: async ({ endpoint, request, response }) => {
-
-		console.log(JSON.stringify(request.body));
 
 		// handle accepted Tyntec WhatsApp messages
 		if (request.body.status) {
@@ -342,25 +362,15 @@ createWebhookTransformer({
 		processedSessionStorage.clearUserId = clearUserId
 		processedSessionStorage.clearSessionId = clearSessionId
 
-		let text = request.body.content.text;
+		let text: string;
 		const data = request.body;
 
-		// check if the user chose a quick reply by inserting a number that fits a stored reply
-		let sessionQuickReplies: ISessionStorageQuickReply[] = processedSessionStorage.quickReplies || [];
-
-		// compare session quick replies with user input text and check if there is a stored quick reply that should be triggered by the current user input text
-		for (let sessionQuickReply of sessionQuickReplies) {
-			// the user can send the number or the title of a quick reply
-			if (text.toLowerCase().includes(sessionQuickReply.index) || text.toLowerCase().includes(sessionQuickReply.quickReply.title.toLowerCase())) {
-				if (sessionQuickReply.quickReply.contentType === "trigger_intent") {
-					text = sessionQuickReply.quickReply.title;
-				} else {
-					text = sessionQuickReply.quickReply.payload;
-				}
-			}
+		// Check if quick reply button was clicked
+		if (request?.body?.postback?.data) {
+			text = request.body.postback.data;
+		} else {
+			text = request.body.content.text;
 		}
-
-
 
 		return {
 			userId,
@@ -369,25 +379,6 @@ createWebhookTransformer({
 			data
 		};
 	},
-
-	/**
-	 * This transformer is executed on every output from the Flow.
-	 * For Webhook based transformers, the return value of this transformer
-	 * will be sent directly to the user.
-	 *
-	 * @param processedOutput The output from the Flow that has been processed into the final object
-	 * that will be sent to the user. It is structured according to the data structure used
-	 * on the specific Endpoint channel.
-	 *
-	 * @param output The raw output from the Flow.
-	 * @param endpoint The configuration object for the used Endpoint.
-	 * @param userId The unique ID of the user.
-	 * @param sessionId The unique ID for this session. Can be used together with the userId
-	 * to retrieve the sessionStorage object.
-	 *
-	 * @returns An object that will be sent to the user, unchanged. It therefore has to have the
-	 * correct format according to the documentation of the specific Endpoint channel.
-	 */
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 		//create output transformer translation storage
 		const processedSessionStorage = await getSessionStorage(userId, sessionId);
@@ -403,13 +394,12 @@ createWebhookTransformer({
 		let whatsapp: TWhatsAppContent[] = convertWebchatContentToWhatsApp(output, clearSessionId, processedSessionStorage);
 		if (!whatsapp.length) {
 			console.error("Missing WhatsApp compatible channel output!");
-			console.log(JSON.stringify(output))
 			return
 		}
-		let result;
-		// decide whether to use the bulks or messages API. If there is only one message, use the messages API.
+
+		// Decide whether to use the bulks or messages API. If there is only one message, use the messages API.
 		if (whatsapp.length === 1) {
-			result = await httpRequest({
+			await httpRequest({
 				uri: "https://api.tyntec.com/chat-api/v2/messages",
 				method: "POST",
 				headers: {
@@ -427,7 +417,7 @@ createWebhookTransformer({
 				json: true
 			});
 		} else {
-			result = await httpRequest({
+			await httpRequest({
 				uri: "https://api.tyntec.com/chat-api/v2/bulks",
 				method: "POST",
 				headers: {
@@ -444,41 +434,10 @@ createWebhookTransformer({
 				json: true
 			});
 		}
-		console.log(result);
 		return null;
-
-		return processedOutput;
 	},
-
-	/**
-		 * This transformer is executed when the Flow execution has finished.
-	 * Since all outputs have been sent to the user, this transformer does not return anything.
-	 *
-	 * @param userId The unique ID of the user.
-	 * @param sessionId The unique ID for this session. Can be used together with the userId
-	 * to retrieve the sessionStorage object.
-	 *
-	 * @param endpoint The configuration object for the used Endpoint.
-	 *
-	 * @returns This transformer cannot return anything.
-	 */
 	handleExecutionFinished: async ({ sessionId, userId, endpoint }) => {
-
 	},
-
-	/**
-	 * This transformer is executed when receiving an inject event.
-	 * The extracted text and data will be injected into the conversation
-	 * for the given user in the given session.
-	 *
-	 * @param request The Express request object with a JSON parsed body.
-	 * @param response The Express response object.
-	 * @param endpoint The configuration object for the used Endpoint.
-	 *
-	 * @returns A valid userId, sessionId, as well as text and/or data,
-	 * which has been extracted from the request body. The text and data
-	 * will be injected into this conversation.
-	 */
 	handleInject: async ({ request, response, endpoint }) => {
 
 		/**
@@ -491,10 +450,12 @@ createWebhookTransformer({
 		 * every Endpoint, and the example above needs to be adjusted
 		 * accordingly.
 		 */
-		const userId = "";
-		const sessionId = "";
-		const text = "";
-		const data = {}
+		const userId = undefined;
+		const sessionId = undefined;
+		const text = undefined;
+		const data = {
+			timeout: true
+		}
 
 		return {
 			userId,
@@ -503,20 +464,6 @@ createWebhookTransformer({
 			data
 		};
 	},
-
-	/**
-	 * This transformer is executed when receiving a notify event.
-	 * The extracted text and data will be sent directly to the
-	 * given user in the given session as a notification.
-	 *
-	 * @param request The Express request object with a JSON parsed body.
-	 * @param response The Express response object.
-	 * @param endpoint The configuration object for the used Endpoint.
-	 *
-	 * @returns A valid userId, sessionId, as well as text and/or data,
-	 * which has been extracted from the request body. The text and data
-	 * will be sent directly to the user.
-	 */
 	handleNotify: async ({ request, response, endpoint }) => {
 
 		/**
