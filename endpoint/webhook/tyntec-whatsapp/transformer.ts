@@ -10,8 +10,6 @@
  * }
 */
 
-// const TYNTEC_API_KEY = "PYvD7k3JEzaD6rZwvky7zaLXSt5AluUy"; // Tyntec API Key
-
 const TYNTEC_API_KEY = ""; // Tyntec API Key
 
 //session timeout in seconds, new session gets generated afterwards
