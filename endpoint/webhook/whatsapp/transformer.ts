@@ -1,5 +1,23 @@
+/**
+ * WhatsApp Endpoint
+ * 
+ * Type: Webhook
+ * Documentation: https://developers.facebook.com/docs/whatsapp/getting-started/signing-up
+ */
+
+// This token can be defined by you and is used in order verify this Webhook in the Facebook Developer portal.
+// If a new Webhook is created in Facebook Developer for WhatsApp, the Endpoint URL and this VERIFY_TOKEN must be provided.
+// Example: Cognigy123
 const VERIFY_TOKEN: string = "";
+
+// This is the phone number associated with the WhatsApp Business Account that can be found in the WhatsApp Manager platform
+// Example: 104510793210612
 const PHONE_NUMBER_ID: string = "";
+
+// This token is used in order to authenticate the outgoing message to WhatsApp within the handleOutput() Transformer
+// It can be found in the "First Steps" section of "WhatsApp" inside of the Facebook Developer portal
+// Example: EAAEYl54FMww...
+const BEARER_TOMEN: string = "";
 
 interface IWhatsAppMessageBasis {
 	messaging_product: 'whatsapp';
@@ -352,8 +370,8 @@ createWebhookTransformer({
 			method: "POST",
 			headers: {
 				'Content-Type': 'application/json',
-				//'Accept':'application/json',
-				'Authorization': 'Bearer '
+				// The Authorization 
+				'Authorization': `Bearer ${BEARER_TOMEN}`
 			},
 			body: whatsAppMessage,
 			json: true
