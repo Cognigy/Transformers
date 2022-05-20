@@ -3,9 +3,9 @@ const PHONE_NUMBER_ID: string = "";
 
 interface IWhatsAppMessageBasis {
 	messaging_product: 'whatsapp';
-	recipient_type: 'individual';
+	recipient_type?: 'individual';
 	to: string;
-	type: 'text' | 'image' | 'contacts' | 'location' | 'interactive';
+	type: 'text' | 'image' | 'audio' | 'video' | 'contacts' | 'location' | 'interactive' | 'document';
 }
 
 interface IWhatsAppTextMessage extends IWhatsAppMessageBasis {
@@ -44,7 +44,89 @@ interface IWhatsAppQuickReplyMessage extends IWhatsAppMessageBasis {
 	}
 }
 
-type IWhatsAppMessage = IWhatsAppTextMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage;
+interface IWhatsAppImageMessage extends IWhatsAppMessageBasis {
+	image: {
+		link: string;
+		caption?: string;
+	}
+}
+
+interface IWhatsAppAudioMessage extends IWhatsAppMessageBasis {
+	audio: {
+		link: string;
+	}
+}
+
+interface IWhatsAppVideoMessage extends IWhatsAppMessageBasis {
+	video: {
+		link: string;
+	}
+}
+
+interface IWhatsAppDocumentMessage extends IWhatsAppMessageBasis {
+	document: {
+		link: string;
+		caption: string;
+		filename: string;
+	}
+}
+
+interface IWhatsAppContactAddress {
+	street: string;
+	city: string;
+	state: string;
+	zip: string;
+	country: string;
+	country_code: string;
+	type: 'WORK' | 'HOME';
+}
+
+interface IWhatsAppContactEmail {
+	email: string;
+	type: 'WORK' | 'HOME';
+}
+
+interface IWhatsAppContactName {
+	formatted_name: string;
+	first_name: string;
+	last_name: string;
+	middle_name: string;
+	suffix: string;
+	prefix: string;
+}
+
+interface IWhatsAppContactOrg {
+	company: string;
+	department: string;
+	title: string;
+}
+
+interface IWhatsAppContactPhone {
+	phone: string;
+	type: 'WORK' | 'HOME';
+	wa_id?: string;
+}
+
+interface IWhatsAppContactURL {
+	url: string;
+	type: 'WORK' | 'HOME'
+}
+
+interface IWhatsAppContact {
+	addresses: IWhatsAppContactAddress[];
+	birthday: string;
+	emails: IWhatsAppContactEmail[];
+	name: IWhatsAppContactName;
+	org: IWhatsAppContactOrg;
+	phones: IWhatsAppContactPhone[];
+	urls: IWhatsAppContactURL[];
+}
+
+interface IWhatsAppContactsMessage extends IWhatsAppMessageBasis {
+	contacts: IWhatsAppContact[];
+}
+
+type IWhatsAppMessage = IWhatsAppTextMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | IWhatsAppImageMessage | IWhatsAppVideoMessage | IWhatsAppAudioMessage | IWhatsAppDocumentMessage | IWhatsAppContactsMessage;
 
 interface IDefaultQuickReply {
 	title: string;
@@ -85,26 +167,7 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 		}
 	}
 
-	// Check for location message
-	else if (output?.data?.location) {
-
-		const { longitude, latitude, name, address } = output.data.location;
-
-		return {
-			messaging_product: 'whatsapp',
-			recipient_type: 'individual',
-			to: userId,
-			type: 'location',
-			location: {
-				longitude,
-				latitude,
-				name,
-				address
-			}
-		}
-	}
-
-	// Check for text with quick replies 
+	// Check for text with quick replies message
 	else if (output?.data?._cognigy?._default?._quickReplies !== null && output?.data?._cognigy?._default?._quickReplies?.type === "quick_replies") {
 
 		let text: string = output?.data?._cognigy?._default?._quickReplies?.text;
@@ -126,11 +189,114 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 			}
 		}
 	}
+
+	// Check for image message
+	if (output?.data?._cognigy?._default?._image?.type === 'image') {
+
+		const { imageUrl, fallbackText } = output?.data?._cognigy?._default?._image;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'image',
+			image: {
+				link: imageUrl,
+				caption: fallbackText || ""
+			}
+		}
+	}
+
+	// Check for video message
+	if (output?.data?._cognigy?._default?._video?.type === 'video') {
+
+		const { videoUrl } = output?.data?._cognigy?._default?._video;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'video',
+			video: {
+				link: videoUrl
+			}
+		}
+	}
+
+	// Check for audio message
+	if (output?.data?._cognigy?._default?._audio?.type === 'audio') {
+
+		const { audioUrl } = output?.data?._cognigy?._default?._audio;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'audio',
+			audio: {
+				link: audioUrl
+			}
+		}
+	}
+
+
+	// Check for location message
+	else if (output?.data?.location) {
+
+		const { longitude, latitude, name, address } = output.data.location;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'location',
+			location: {
+				longitude,
+				latitude,
+				name,
+				address
+			}
+		}
+	}
+
+	// Check for contacts message
+	else if (output?.data?.contacts) {
+
+		const { contacts } = output?.data;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'contacts',
+			contacts
+		}
+	}
+
+	// Check for document message
+	else if (output?.data?.document) {
+
+		const { link, caption, filename } = output?.data?.document;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'document',
+			document: {
+				link,
+				caption,
+				filename
+			}
+		}
+	}
 }
 
 
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
+
+		console.log(JSON.stringify(request.body))
 
 		let userId = '';
 		let sessionId = '';
@@ -178,6 +344,8 @@ createWebhookTransformer({
 
 		let whatsAppMessage: IWhatsAppMessage = transformToWhatsAppMessage(output, userId);
 
+		console.log(JSON.stringify(whatsAppMessage))
+
 		// Send Cognigy.AI message to WhatsApp
 		await httpRequest({
 			uri: `https://graph.facebook.com/v13.0/${PHONE_NUMBER_ID}/messages`,
@@ -185,7 +353,7 @@ createWebhookTransformer({
 			headers: {
 				'Content-Type': 'application/json',
 				//'Accept':'application/json',
-				'Authorization': 'Bearer'
+				'Authorization': 'Bearer '
 			},
 			body: whatsAppMessage,
 			json: true
