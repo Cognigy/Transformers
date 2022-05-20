@@ -17,7 +17,7 @@ const PHONE_NUMBER_ID: string = "";
 // This token is used in order to authenticate the outgoing message to WhatsApp within the handleOutput() Transformer
 // It can be found in the "First Steps" section of "WhatsApp" inside of the Facebook Developer portal
 // Example: EAAEYl54FMww...
-const BEARER_TOMEN: string = "";
+const BEARER_TOKEN: string = "";
 
 interface IWhatsAppMessageBasis {
 	messaging_product: 'whatsapp';
@@ -308,13 +308,17 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 			}
 		}
 	}
+	
+	// output error
+	else {
+		console.log("Can't find valid output to transform into WhatsApp message");
+		return null;
+	}
 }
 
 
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
-
-		console.log(JSON.stringify(request.body))
 
 		let userId = '';
 		let sessionId = '';
@@ -359,24 +363,22 @@ createWebhookTransformer({
 	},
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
+		const whatsAppMessage: IWhatsAppMessage = transformToWhatsAppMessage(output, userId);
 
-		let whatsAppMessage: IWhatsAppMessage = transformToWhatsAppMessage(output, userId);
-
-		console.log(JSON.stringify(whatsAppMessage))
-
-		// Send Cognigy.AI message to WhatsApp
-		await httpRequest({
-			uri: `https://graph.facebook.com/v13.0/${PHONE_NUMBER_ID}/messages`,
-			method: "POST",
-			headers: {
-				'Content-Type': 'application/json',
-				// The Authorization 
-				'Authorization': `Bearer ${BEARER_TOMEN}`
-			},
-			body: whatsAppMessage,
-			json: true
-		});
-
+		if (whatsAppMessage) {
+			// Send Cognigy.AI message to WhatsApp
+			await httpRequest({
+				uri: `https://graph.facebook.com/v13.0/${PHONE_NUMBER_ID}/messages`,
+				method: "POST",
+				headers: {
+					'Content-Type': 'application/json',
+					// The Authorization 
+					'Authorization': `Bearer ${BEARER_TOKEN}`
+				},
+				body: whatsAppMessage,
+				json: true
+			});
+		}
 
 		return null;
 	},
