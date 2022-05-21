@@ -219,6 +219,38 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 		}
 	}
 
+	// Check for gallery message
+	if (output?.data?._cognigy?._default?._gallery?.items) {
+
+		const galleryElements = output?.data?._cognigy?._default?._gallery?.items;
+
+		// create gallery message as message bubble
+		for (let element of galleryElements) {
+
+			// check if image is provided
+			if (element?.imageUrl === "" || element?.imageUrl === null || element?.imageUrl === undefined) {
+				throw new Error('[WhatsApp] Gallery item is missing image url');
+			}
+
+			/**
+			 * TODO:
+			 * - Only the first gallery element is sent to the user. Bulk messages must be possible.
+			 * - Buttons of gallery element must quick replies or URL buttons
+			 */
+			return {
+				messaging_product: 'whatsapp',
+				recipient_type: 'individual',
+				to: userId,
+				type: 'image',
+				image: {
+					link: element?.imageUrl,
+					caption: `*${element?.title}*\n\n${element?.subtitle}`
+				}
+			}
+		}
+	}
+
+
 	// Check for image message
 	if (output?.data?._cognigy?._default?._image?.type === 'image') {
 
@@ -339,6 +371,8 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
 
+		console.log(JSON.stringify(request.body));
+
 		try {
 
 			// Initialize Cognigy.AI input values
@@ -347,7 +381,7 @@ createWebhookTransformer({
 			let text = '';
 			let data = {};
 
-						// Verify the webhook connection initially
+			// Verify the webhook connection initially
 			if (request?.query['hub.verify_token']) {
 
 				// Parse params from the webhook verification request
@@ -395,7 +429,7 @@ createWebhookTransformer({
 			}
 
 			// Check if the user sent a message || request.body doesn't include `whatsapp_business_api_data` object
-			 else if (request?.body?.entry[0]?.changes[0]?.value?.messages) {
+			else if (request?.body?.entry[0]?.changes[0]?.value?.messages) {
 				// Assign the WhatsApp values to the Cognigy.AI input
 				userId = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.from;
 				sessionId = request?.body?.entry[0]?.changes[0]?.value?.metadata?.display_phone_number;
