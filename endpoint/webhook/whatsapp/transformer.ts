@@ -347,9 +347,29 @@ createWebhookTransformer({
 			let text = '';
 			let data = {};
 
+						// Verify the webhook connection initially
+			if (request?.query['hub.verify_token']) {
 
-			// Check if the user sent a message
-			if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages) {
+				// Parse params from the webhook verification request
+				let mode = request?.query['hub.mode'];
+				let token = request?.query['hub.verify_token'];
+				let challenge = request?.query['hub.challenge'];
+
+				// Check if a token and more were sent
+				if (mode && token) {
+					// Check the mode and token sent are correctly
+					if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+						// Respond with 200 ok and challenge token from the request
+						response.status(200).send(challenge);
+					} else {
+						// Responds with '403 Forbidden' if verfiy tokens do not match
+						response.sendStatus(403);
+					}
+				}
+			}
+
+			// Check if the user sent a message || request.body includes `whatsapp_business_api_data` object
+			else if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages) {
 				// Assign the WhatsApp values to the Cognigy.AI input
 				userId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.from;
 				sessionId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.display_phone_number;
@@ -374,25 +394,30 @@ createWebhookTransformer({
 				};
 			}
 
-			// Verify the webhook connection initially
-			else if (request?.query['hub.verify_token']) {
+			// Check if the user sent a message || request.body doesn't include `whatsapp_business_api_data` object
+			 else if (request?.body?.entry[0]?.changes[0]?.value?.messages) {
+				// Assign the WhatsApp values to the Cognigy.AI input
+				userId = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.from;
+				sessionId = request?.body?.entry[0]?.changes[0]?.value?.metadata?.display_phone_number;
+				data = request?.body?.entry[0]?.changes[0]?.value;
 
-				// Parse params from the webhook verification request
-				let mode = request?.query['hub.mode'];
-				let token = request?.query['hub.verify_token'];
-				let challenge = request?.query['hub.challenge'];
-
-				// Check if a token and more were sent
-				if (mode && token) {
-					// Check the mode and token sent are correctly
-					if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-						// Respond with 200 ok and challenge token from the request
-						response.status(200).send(challenge);
-					} else {
-						// Responds with '403 Forbidden' if verfiy tokens do not match
-						response.sendStatus(403);
-					}
+				// Check if a text message was sent
+				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.text?.body) {
+					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.text?.body;
 				}
+
+				// Check if an image with caption was sent
+				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption) {
+					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption;
+				}
+
+				// Return the user message in order to execute the Flow
+				return {
+					userId,
+					sessionId,
+					text,
+					data
+				};
 			} else {
 				return null;
 			}
