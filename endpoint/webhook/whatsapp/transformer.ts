@@ -23,7 +23,7 @@ interface IWhatsAppMessageBasis {
 	messaging_product: 'whatsapp';
 	recipient_type?: 'individual';
 	to: string;
-	type: 'text' | 'image' | 'audio' | 'video' | 'contacts' | 'location' | 'interactive' | 'document';
+	type: 'text' | 'image' | 'audio' | 'video' | 'contacts' | 'location' | 'interactive' | 'document' | 'template';
 }
 
 interface IWhatsAppTextMessage extends IWhatsAppMessageBasis {
@@ -89,6 +89,17 @@ interface IWhatsAppDocumentMessage extends IWhatsAppMessageBasis {
 	}
 }
 
+
+interface IWhatsAppTemplateMessage extends IWhatsAppMessageBasis {
+	template: {
+		name: string;
+		language: {
+			code: string;
+		}
+		components: any[]
+	}
+}
+
 interface IWhatsAppContactAddress {
 	street: string;
 	city: string;
@@ -144,7 +155,7 @@ interface IWhatsAppContactsMessage extends IWhatsAppMessageBasis {
 	contacts: IWhatsAppContact[];
 }
 
-type IWhatsAppMessage = IWhatsAppTextMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | IWhatsAppImageMessage | IWhatsAppVideoMessage | IWhatsAppAudioMessage | IWhatsAppDocumentMessage | IWhatsAppContactsMessage;
+type IWhatsAppMessage = IWhatsAppTextMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | IWhatsAppImageMessage | IWhatsAppVideoMessage | IWhatsAppAudioMessage | IWhatsAppDocumentMessage | IWhatsAppContactsMessage | IWhatsAppTemplateMessage;
 
 interface IDefaultQuickReply {
 	title: string;
@@ -308,11 +319,19 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 			}
 		}
 	}
-	
-	// output error
-	else {
-		console.log("Can't find valid output to transform into WhatsApp message");
-		return null;
+
+	// Check for template message
+	else if (output?.data?.template) {
+
+		const { template } = output?.data;
+
+		return {
+			messaging_product: 'whatsapp',
+			recipient_type: 'individual',
+			to: userId,
+			type: 'template',
+			template
+		}
 	}
 }
 
@@ -320,52 +339,80 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
 
-		let userId = '';
-		let sessionId = '';
-		let text = '';
-		let data = {};
+		try {
 
-		// Verify the webhook connection initially
-		if (request?.query['hub.verify_token']) {
+			// Initialize Cognigy.AI input values
+			let userId = '';
+			let sessionId = '';
+			let text = '';
+			let data = {};
 
-			// Parse params from the webhook verification request
-			let mode = request?.query['hub.mode'];
-			let token = request?.query['hub.verify_token'];
-			let challenge = request?.query['hub.challenge'];
 
-			// Check if a token and more were sent
-			if (mode && token) {
-				// Check the mode and token sent are correctly
-				if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-					// Respond with 200 ok and challenge token from the request
-					response.status(200).send(challenge);
-				} else {
-					// Responds with '403 Forbidden' if verfiy tokens do not match
-					response.sendStatus(403);
+			// Check if the user sent a message
+			if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages) {
+				// Assign the WhatsApp values to the Cognigy.AI input
+				userId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.from;
+				sessionId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.display_phone_number;
+				data = request?.body?.entry[0]?.changes[0]?.value;
+
+				// Check if a text message was sent
+				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.text?.body) {
+					text = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.text?.body;
 				}
+
+				// Check if an image with caption was sent
+				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption) {
+					text = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption;
+				}
+
+				// Return the user message in order to execute the Flow
+				return {
+					userId,
+					sessionId,
+					text,
+					data
+				};
 			}
-		}
 
-		// Check if the user sent a message
-		if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.text?.body) {
-			userId = request?.body.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.from;
-			sessionId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.display_phone_number;
-			text = request?.body?.entry[0].changes[0].value.whatsapp_business_api_data.messages[0].text.body;
-			data = request.body?.entry[0]?.changes[0]?.value;
-		}
+			// Verify the webhook connection initially
+			else if (request?.query['hub.verify_token']) {
 
-		return {
-			userId,
-			sessionId,
-			text,
-			data
-		};
+				// Parse params from the webhook verification request
+				let mode = request?.query['hub.mode'];
+				let token = request?.query['hub.verify_token'];
+				let challenge = request?.query['hub.challenge'];
+
+				// Check if a token and more were sent
+				if (mode && token) {
+					// Check the mode and token sent are correctly
+					if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+						// Respond with 200 ok and challenge token from the request
+						response.status(200).send(challenge);
+					} else {
+						// Responds with '403 Forbidden' if verfiy tokens do not match
+						response.sendStatus(403);
+					}
+				}
+			} else {
+				return null;
+			}
+
+		} catch (error) {
+			// Log the error message
+			console.error(`[WhatsApp] An error occured in Input Transformer: ${error?.message}`);
+
+			// Stop the execution
+			return null;
+		}
 	},
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
-		const whatsAppMessage: IWhatsAppMessage = transformToWhatsAppMessage(output, userId);
 
-		if (whatsAppMessage) {
+		try {
+
+			// Transform the Cognigy.AI output into a valid WhatsApp message object
+			let whatsAppMessage: IWhatsAppMessage = transformToWhatsAppMessage(output, userId);
+
 			// Send Cognigy.AI message to WhatsApp
 			await httpRequest({
 				uri: `https://graph.facebook.com/v13.0/${PHONE_NUMBER_ID}/messages`,
@@ -378,7 +425,12 @@ createWebhookTransformer({
 				body: whatsAppMessage,
 				json: true
 			});
+
+		} catch (error) {
+			// Log error message
+			console.error(`[WhatsApp] An error occured in Output Transformer: ${error?.message}`);
 		}
+
 
 		return null;
 	},
