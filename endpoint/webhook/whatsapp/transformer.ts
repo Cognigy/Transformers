@@ -250,7 +250,6 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 		}
 	}
 
-
 	// Check for image message
 	if (output?.data?._cognigy?._default?._image?.type === 'image') {
 
@@ -403,46 +402,37 @@ createWebhookTransformer({
 			}
 
 			// Check if the user sent a message || request.body includes `whatsapp_business_api_data` object
-			else if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages) {
-				// Assign the WhatsApp values to the Cognigy.AI input
-				userId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.from;
-				sessionId = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.display_phone_number;
-				data = request?.body?.entry[0]?.changes[0]?.value;
+			else if (request?.body?.entry?.[0].changes?.[0].value) {
+				let valuePath = null;
+				let messagePath = null;
 
-				// Check if a text message was sent
-				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.text?.body) {
-					text = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.text?.body;
+				// find the base path based on the api type (cloud vs onprem)
+				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages) {
+					valuePath = request.body?.entry[0].changes[0].value.whatsapp_business_api_data;
+				} else if (request?.body?.entry?.[0].changes?.[0].value?.messages) {
+					valuePath = request.body.entry[0].changes[0].value;
+				} else {
+					return null;
 				}
 
-				// Check if an image with caption was sent
-				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption) {
-					text = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption;
+				messagePath = valuePath.messages[0];
+
+				userId = messagePath.from;
+				sessionId = valuePath.metadata?.display_phone_number;
+				data = valuePath;
+
+				if (messagePath.text) {
+					text = messagePath.text?.body;
 				}
 
-				// Return the user message in order to execute the Flow
-				return {
-					userId,
-					sessionId,
-					text,
-					data
-				};
-			}
-
-			// Check if the user sent a message || request.body doesn't include `whatsapp_business_api_data` object
-			else if (request?.body?.entry[0]?.changes[0]?.value?.messages) {
-				// Assign the WhatsApp values to the Cognigy.AI input
-				userId = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.from;
-				sessionId = request?.body?.entry[0]?.changes[0]?.value?.metadata?.display_phone_number;
-				data = request?.body?.entry[0]?.changes[0]?.value;
-
-				// Check if a text message was sent
-				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.text?.body) {
-					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.text?.body;
+				// extract image caption as input text
+				else if (messagePath.image) {
+					text = messagePath.image?.caption;
 				}
 
-				// Check if an image with caption was sent
-				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption) {
-					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption;
+				// extract video caption as input text
+				else if (messagePath.video) {
+					text = messagePath.video?.caption;
 				}
 
 				// Return the user message in order to execute the Flow
@@ -464,8 +454,8 @@ createWebhookTransformer({
 			return null;
 		}
 	},
-	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
+	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
 		try {
 
@@ -489,7 +479,6 @@ createWebhookTransformer({
 			// Log error message
 			console.error(`[WhatsApp] An error occured in Output Transformer: ${error?.message}`);
 		}
-
 
 		return null;
 	},
