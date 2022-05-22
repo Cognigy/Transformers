@@ -157,10 +157,43 @@ interface IWhatsAppContactsMessage extends IWhatsAppMessageBasis {
 
 type IWhatsAppMessage = IWhatsAppTextMessage | IWhatsAppLocationMessage | IWhatsAppQuickReplyMessage | IWhatsAppImageMessage | IWhatsAppVideoMessage | IWhatsAppAudioMessage | IWhatsAppDocumentMessage | IWhatsAppContactsMessage | IWhatsAppTemplateMessage;
 
+interface IWhatsAppMediaDownloadResponse {
+	url: string;
+	mime_type: string;
+	sha256: string;
+	file_size: number;
+	id: string;
+	messaging_product: 'whatsapp' | string;
+}
+
 interface IDefaultQuickReply {
 	title: string;
 	payload: string;
 	contentType: string;
+}
+
+/**
+ * Downloads media content based on the ID that WhatsApp responds to Cognigy.AI
+ * @param {string} `mediaId` The ID of the sent media
+ * @return {IWhatsAppMediaDownloadResponse} The download URL, mime_type, file_size, and id
+ */
+const downloadWhatsAppMediaByID = async (mediaId: string): Promise<IWhatsAppMediaDownloadResponse> => {
+
+	try {
+		// Download the media content that was sent by the user. For example, an image
+		return await httpRequest({
+			uri: `https://graph.facebook.com/v13.0/${mediaId}`,
+			method: "GET",
+			headers: {
+				'Accept': 'application/json',
+				// The Authorization 
+				'Authorization': `Bearer ${BEARER_TOKEN}`
+			},
+			json: true
+		});
+	} catch (error) {
+		return null;
+	}
 }
 
 const createWhatsAppQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IWhatsAppQuickReplyButton[] => {
@@ -371,8 +404,6 @@ const transformToWhatsAppMessage = (output: IProcessOutputData, userId: string):
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
 
-		console.log(JSON.stringify(request.body));
-
 		try {
 
 			// Initialize Cognigy.AI input values
@@ -417,6 +448,18 @@ createWebhookTransformer({
 				// Check if an image with caption was sent
 				if (request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption) {
 					text = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.caption;
+
+					// Extract the media id
+					const mediaId: string = request?.body?.entry[0]?.changes[0]?.value?.whatsapp_business_api_data?.messages[0]?.image?.id;
+
+					// Download the media content JSON and set it as data input
+					const mediaDownloadResponse: IWhatsAppMediaDownloadResponse = await downloadWhatsAppMediaByID(mediaId);
+
+					data = {
+						...data,
+						media: mediaDownloadResponse
+					}
+
 				}
 
 				// Return the user message in order to execute the Flow
@@ -440,9 +483,22 @@ createWebhookTransformer({
 					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.text?.body;
 				}
 
-				// Check if an image with caption was sent
-				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption) {
-					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption;
+				// Check if an image was sent
+				if (request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image) {
+
+					// Check if the image includes a caption. If not, sent empty text
+					text = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.caption || '';
+
+					// Extract the media id
+					const mediaId: string = request?.body?.entry[0]?.changes[0]?.value?.messages[0]?.image?.id;
+
+					// Download the media content JSON and set it as data input
+					const mediaDownloadResponse: IWhatsAppMediaDownloadResponse = await downloadWhatsAppMediaByID(mediaId);
+
+					data = {
+						...data,
+						media: mediaDownloadResponse
+					}
 				}
 
 				// Return the user message in order to execute the Flow
