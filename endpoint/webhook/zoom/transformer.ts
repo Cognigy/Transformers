@@ -1,7 +1,15 @@
+/**
+ * Zoom Endpoint
+ * 
+ * This Endpoint Transformer is required for connecting Cognigy.AI to Zoom Chat.
+ */
+
+
+// To authenticate every sent Cognigy.AI message, the Client ID and Client Secret are used
+// Both values can be found in the 'App Credentials' section of the Zoom Marketplace App
+// Docs: https://marketplace.zoom.us/docs/guides/build/chatbot-app#generate-app-credentials
 const CLIENT_ID: string = '';
 const CLIENT_SECRET: string = '';
-
-const BEARER_TOKEN: string = '';
 
 interface IZoomAuthenticationResponse {
 	access_token: string;
@@ -83,6 +91,9 @@ interface IDefaultQuickReply {
 }
 
 
+/**
+ * Transforms the AI channel Quick Reply buttons into valid Zoom 'suggestions'
+ */
 const createZoomQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IZoomQuickReplyButton[] => {
 
 	let zoomQuickReplies: IZoomQuickReplyButton[] = [];
@@ -98,6 +109,9 @@ const createZoomQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IZoomQ
 	return zoomQuickReplies;
 }
 
+/**
+ * Transforms the AI channel Say Node content into a valid Zoom message
+ */
 const transformToZoomMessage = async (output: IProcessOutputData, userId: string, sessionId: string): Promise<TZoomMessage> => {
 
 	const sessionStorage = await getSessionStorage(userId, sessionId);
@@ -169,21 +183,24 @@ const transformToZoomMessage = async (output: IProcessOutputData, userId: string
 createWebhookTransformer({
 	handleInput: async ({ endpoint, request, response }) => {
 
-		console.log(`[Payload] ${JSON.stringify(request?.body)}`);
-
 		let userId: string = '';
 		let sessionId: string = '';
 
-		// Check if payload was sent
+		// Check if Zoom payload was sent
 		if (request?.body?.payload) {
+
+			// Extract the payload from request body
 			const { payload } = request.body as IZoomBotNotificationPayload;
 
+			// Assign user and session ID for Cognigy.AI
 			userId = payload?.userId;
 			sessionId = payload?.userId;
 
+			// Store the payload into the session storage to make it available in the output transformer
 			let sessionStorage = await getSessionStorage(userId, sessionId);
 			sessionStorage.payload = payload;
 
+			// Check if a normal text message was sent by the Zoom user
 			if (request?.body?.event === 'bot_notification') {
 				return {
 					userId,
@@ -191,6 +208,8 @@ createWebhookTransformer({
 					text: payload?.cmd,
 					data: payload
 				};
+
+			// Check if the Zoom user clicked a 'suggestion' (Quick Reply) button
 			} else if (request?.body?.event === 'interactive_message_actions') {
 				return {
 					userId,
@@ -198,6 +217,8 @@ createWebhookTransformer({
 					text: request?.body?.payload?.actionItem?.value,
 					data: payload
 				};
+
+			// Else continue with the Cognigy.AI Flow
 			} else {
 				return;
 			}
@@ -209,14 +230,26 @@ createWebhookTransformer({
 
 		try {
 
-			// Send Cognigy.AI message to WhatsApp
+			// @ts-ignore
+			const basicAuthToken: string = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+
+			// Authorize the message to be sent
+			let authResponse: IZoomAuthenticationResponse = await httpRequest({
+				uri: `https://zoom.us/oauth/token?grant_type=client_credentials`,
+				method: 'POST',
+				headers: {
+					'Authorization': `Basic ${basicAuthToken}`
+				},
+				json: true
+			});
+
+			// Send Cognigy.AI message to Zoom
 			await httpRequest({
 				uri: `https://api.zoom.us/v2/im/chat/messages`,
-				method: "POST",
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					// The Authorization 
-					'Authorization': `Bearer ${BEARER_TOKEN}`
+					'Authorization': `Bearer ${authResponse?.access_token}`
 				},
 				body: zoomMessage,
 				json: true
