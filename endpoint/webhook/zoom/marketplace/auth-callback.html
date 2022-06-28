@@ -1,0 +1,26 @@
+<html>
+
+<body>
+    <script>
+        const { code } = window.location.search
+            .substr(1)
+            .split('&')
+            .reduce((params, paramString) => {
+                const [key, value] = paramString.split('=');
+
+                params[key] = value;
+
+                return params;
+            }, {});
+
+        // The Zoom Bot JID
+        // This identifier can be found in the 'Chat Subscription' section of the Zoom App within the Zoom Developer Portal
+        // Docs: https://marketplace.zoom.us/docs/guides/build/chatbot-app/#set-features
+        const zoomBotJid = "...@xmpp.zoom.us";
+
+        // This will open a new chat conversation with the Zoom Chatbot App in the Zoom client
+        window.open("https://zoom.us/launch/chat?jid=robot_" + zoomBotJid);
+    </script>
+</body>
+
+</html>
