@@ -8,7 +8,12 @@ This [Transformer Function](https://docs.cognigy.com/docs/transformers) converts
 
 - Text
 - Text with Quick Replies
+- Text with (URL) Button
+- Gallery
+- List
 - Image
+- Audio
+- Video
 
 ## Installation
 

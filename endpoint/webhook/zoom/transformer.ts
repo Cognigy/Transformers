@@ -48,20 +48,20 @@ interface IZoomTextMessage extends IZoomMessageBasis {
 	}
 }
 
+interface IZoomImage {
+	type: 'attachments';
+	resource_url: string;
+	img_url: string;
+	information?: {
+		title: {
+			text: string;
+		}
+	}
+}
+
 interface IZoomImageMessage extends IZoomMessageBasis {
 	content: {
-		body: [
-			{
-				type: 'attachments' | string;
-				resource_url: string;
-				img_url: string;
-				information?: {
-					title: {
-						text: string;
-					}
-				}
-			}
-		]
+		body: IZoomImage[];
 	}
 }
 
@@ -71,18 +71,54 @@ interface IZoomQuickReplyButton {
 	style: 'Primary' | 'Default' | 'Danger' | 'Disabled';
 }
 
+interface IZoomQuickReplyBody {
+	type: 'actions';
+	items: IZoomQuickReplyButton[];
+}
+
 interface IZoomQuickReplyMessage extends IZoomMessageBasis {
 	content: {
-		body: [
-			{
-				type: 'actions' | string;
-				items: IZoomQuickReplyButton[];
-			}
-		]
+		head: {
+			text: string;
+		}
+		body: IZoomQuickReplyBody[]
 	}
 }
 
-type TZoomMessage = IZoomTextMessage | IZoomQuickReplyMessage | IZoomImageMessage;
+interface IZoomLinkButtonBody {
+	type: 'message';
+	text: string;
+	link: string;
+}
+
+interface IZoomLinkButtonMessage extends IZoomMessageBasis {
+	content: {
+		head?: {
+			text: string;
+		}
+		body: IZoomLinkButtonBody[];
+	}
+}
+
+interface IZoomTextBody {
+	type: 'message';
+	text: string;
+}
+
+interface IZoomSection {
+	type: 'section';
+	sidebar_color: string;
+	sections: (IZoomTextBody | IZoomQuickReplyBody)[];
+	footer?: string;
+	footer_icon?: string;
+	ts?: number;
+}
+
+interface IZoomSectionMessage extends IZoomMessageBasis {
+	content: IZoomSection;
+}
+
+type TZoomMessage = IZoomTextMessage | IZoomQuickReplyMessage | IZoomImageMessage | IZoomLinkButtonMessage | IZoomSectionMessage;
 
 interface IDefaultQuickReply {
 	title: string;
@@ -90,10 +126,30 @@ interface IDefaultQuickReply {
 	contentType: string;
 }
 
+interface IDefaultButton {
+	title: string;
+	type: 'web_url' | string;
+	url?: string;
+	target?: '_blank' | '_self';
+	payload?: string;
+}
 
-/**
- * Transforms the AI channel Quick Reply buttons into valid Zoom 'suggestions'
- */
+interface IDefaultListItem {
+	title: string;
+	subtitle: string;
+	imageUrl: string;
+	defaultActionUrl: string;
+	buttons: IDefaultButton[]
+}
+
+interface IDefaultGalleryItem {
+	title: string;
+	subtitle: string;
+	imageUrl: string;
+	buttons: IDefaultButton[];
+	id: string;
+}
+
 const createZoomQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IZoomQuickReplyButton[] => {
 
 	let zoomQuickReplies: IZoomQuickReplyButton[] = [];
@@ -107,6 +163,115 @@ const createZoomQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IZoomQ
 	}
 
 	return zoomQuickReplies;
+}
+
+const createZoomLinkButtons = (buttons: IDefaultButton[]): IZoomLinkButtonBody[] => {
+
+	let zoomLinkButtons: IZoomLinkButtonBody[] = [];
+
+	for (let button of buttons) {
+		zoomLinkButtons.push({
+			type: 'message',
+			text: button.title,
+			link: button.url
+		});
+	}
+
+	return zoomLinkButtons;
+}
+
+
+/**
+ * Per list or gallery item, this function creates the content for the card or row. In Zoom, this is a section message consisting of sections with sections
+ */
+const createZoomSectionSection = (item: (IDefaultListItem | IDefaultGalleryItem)): (IZoomTextBody | IZoomQuickReplyBody | IZoomLinkButtonBody)[] => {
+
+	const buttons: IDefaultButton[] = item?.buttons;
+	let zoomSectionSections: (IZoomLinkButtonBody | IZoomQuickReplyBody | IZoomTextBody)[] = [];
+
+	// Check if current item has no image. If true, add the item title as section section
+	// as the title would be already provided as image title if the item as an image
+	// Send the text as bold
+	if (item?.imageUrl?.length === 0) {
+		zoomSectionSections.push({
+			type: 'message',
+			text: `*${item?.title}*`
+		});
+	}
+
+	// Check if the current item as a subtitle
+	if (item?.subtitle?.length !== 0) {
+		zoomSectionSections.push({
+			type: 'message',
+			text: item?.subtitle
+		});
+	}
+
+	if (buttons?.length !== 0) {
+		for (let button of buttons) {
+			if (button?.type === 'web_url') {
+				zoomSectionSections.push({
+					type: 'message',
+					text: button?.title,
+					link: button?.url
+				});
+			} else if (button?.type === 'postback') {
+				zoomSectionSections.push({
+					type: 'actions',
+					items: [
+						{
+							text: button?.title,
+							value: button?.payload,
+							style: 'Default'
+						}
+					]
+				});
+			}
+		}
+
+		return zoomSectionSections
+	}
+
+	return [
+		{
+			type: 'message',
+			text: item?.title,
+		}
+	];
+}
+
+/**
+ * Per list or gallery item, this function adds an image at the top and then calls the createZoomSectionSection() function for the content of the actual card or list row
+ */
+const createZoomSections = (items: (IDefaultListItem[] | IDefaultGalleryItem[])): (IZoomSection | IZoomImage)[] => {
+
+	let zoomSections: (IZoomSection | IZoomImage)[] = [];
+
+	for (let item of items) {
+
+		// Check if current item has image
+		if (item?.imageUrl?.length !== 0) {
+
+			zoomSections.push({
+				type: "attachments",
+				resource_url: item?.imageUrl,
+				img_url: item?.imageUrl,
+				information: {
+					title: {
+						text: item?.title
+					}
+				}
+			});
+		}
+
+		zoomSections.push({
+			type: 'section',
+			sidebar_color: '#ffffff',
+			sections: createZoomSectionSection(item)
+		});
+	};
+
+	return zoomSections;
 }
 
 /**
@@ -129,20 +294,30 @@ const transformToZoomMessage = async (output: IProcessOutputData, userId: string
 					text: output.text
 				}
 			}
-		}
+		} as IZoomTextMessage
 	}
 
 	// Check for text with quick replies message
-	else if (output?.data?._cognigy?._default?._quickReplies !== null && output?.data?._cognigy?._default?._quickReplies?.type === "quick_replies") {
+	else if (output?.data?._cognigy?._default?._quickReplies?.type === "quick_replies") {
 
 		let text: string = output?.data?._cognigy?._default?._quickReplies?.text;
 		let quickReplies: IDefaultQuickReply[] = output?.data?._cognigy?._default?._quickReplies?.quickReplies;
 
-		return {
-			robot_jid: payload?.robotJid,
-			to_jid: payload?.toJid,
-			account_id: payload?.accountId,
-			content: {
+		let content: any = {};
+		if (text?.length !== 0) {
+			content = {
+				head: {
+					text
+				},
+				body: [
+					{
+						type: "actions",
+						items: createZoomQuickReplyButtons(quickReplies)
+					}
+				]
+			}
+		} else {
+			content = {
 				body: [
 					{
 						type: "actions",
@@ -151,10 +326,75 @@ const transformToZoomMessage = async (output: IProcessOutputData, userId: string
 				]
 			}
 		}
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content
+		} as IZoomQuickReplyMessage
+	}
+
+	// Check for text with buttons message
+	else if (output?.data?._cognigy?._default?._buttons?.type === "buttons") {
+
+		let text: string = output?.data?._cognigy?._default?._buttons?.text;
+		let buttons: IDefaultButton[] = output?.data?._cognigy?._default?._buttons?.buttons;
+
+		let content: any = {};
+		if (text?.length !== 0) {
+			content = {
+				head: {
+					text
+				},
+				body: createZoomLinkButtons(buttons)
+			}
+		} else {
+			content = {
+				body: createZoomLinkButtons(buttons)
+			}
+		}
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content
+		} as IZoomLinkButtonMessage
+	}
+
+	// Check for gallery message
+	else if (output?.data?._cognigy?._default?._gallery?.type === 'carousel') {
+
+		const galleryItems: IDefaultGalleryItem[] = output?.data?._cognigy?._default?._gallery?.items;
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content: {
+				body: createZoomSections(galleryItems)
+			}
+		} as unknown as IZoomSectionMessage
+	}
+
+	// Check for list message
+	else if (output?.data?._cognigy?._default?._list !== null && output?.data?._cognigy?._default?._list?.type === "list") {
+
+		let listItems: IDefaultListItem[] = output?.data?._cognigy?._default?._list?.items;
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content: {
+				body: createZoomSections(listItems)
+			}
+		} as unknown as IZoomSectionMessage
 	}
 
 	// Check for image message
-	if (output?.data?._cognigy?._default?._image?.type === 'image') {
+	else if (output?.data?._cognigy?._default?._image?.type === 'image') {
 
 		const { imageUrl, fallbackText } = output?.data?._cognigy?._default?._image;
 
@@ -173,6 +413,48 @@ const transformToZoomMessage = async (output: IProcessOutputData, userId: string
 								text: fallbackText || imageUrl
 							}
 						}
+					}
+				]
+			}
+		}
+	}
+
+	// Check for video message
+	else if (output?.data?._cognigy?._default?._video?.type === 'video') {
+
+		const { videoUrl } = output?.data?._cognigy?._default?._video;
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content: {
+				body: [
+					{
+						type: 'message',
+						text: videoUrl,
+						link: videoUrl,
+					}
+				]
+			}
+		}
+	}
+
+	// Check for audio message
+	else if (output?.data?._cognigy?._default?._audio?.type === 'audio') {
+
+		const { audioUrl } = output?.data?._cognigy?._default?._audio;
+
+		return {
+			robot_jid: payload?.robotJid,
+			to_jid: payload?.toJid,
+			account_id: payload?.accountId,
+			content: {
+				body: [
+					{
+						type: 'message',
+						text: audioUrl,
+						link: audioUrl,
 					}
 				]
 			}
@@ -209,7 +491,7 @@ createWebhookTransformer({
 					data: payload
 				};
 
-			// Check if the Zoom user clicked a 'suggestion' (Quick Reply) button
+				// Check if the Zoom user clicked a 'suggestion' (Quick Reply) button
 			} else if (request?.body?.event === 'interactive_message_actions') {
 				return {
 					userId,
@@ -218,7 +500,7 @@ createWebhookTransformer({
 					data: payload
 				};
 
-			// Else continue with the Cognigy.AI Flow
+				// Else continue with the Cognigy.AI Flow
 			} else {
 				return;
 			}
@@ -227,6 +509,8 @@ createWebhookTransformer({
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
 		const zoomMessage: TZoomMessage = await transformToZoomMessage(output, userId, sessionId);
+
+		console.log(JSON.stringify(zoomMessage))
 
 		try {
 
