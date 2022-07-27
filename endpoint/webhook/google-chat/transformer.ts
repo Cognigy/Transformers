@@ -1,3 +1,15 @@
+/**
+* Google Configuration
+*/
+
+// Google Service Account Client Email
+const CLIENT_EMAIL: string = '';
+// Google Scope
+const SCOPE: string = 'https://www.googleapis.com/auth/businessmessages https://www.googleapis.com/auth/chat.bot';
+// Google Service Account Private Key
+const PRIVATE_KEY: string = '';
+
+
 interface IGoogleChatMessageMessageSender {
 	name: string;
 	displayName: string;
@@ -92,6 +104,80 @@ interface IGoogleChatCardUrlButton {
 			}
 		}
 	}
+}
+
+function base64Url(value) {
+	const stringifiedValue = JSON.stringify(value);
+
+	// @ts-ignore
+	const base64 = new Buffer
+		.from(stringifiedValue)
+		.toString("base64");
+
+	return fromBase64(base64);
+}
+
+function fromBase64(base64) {
+	return base64
+		.replace(/=/g, "")
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_");
+}
+
+function createSignature(input, privateKey) {
+	const sigFunction = crypto.createSign("RSA-SHA256");
+
+	// @ts-ignore
+	sigFunction.write(input);
+	// @ts-ignore
+	sigFunction.end();
+
+	const signatureBase64 = sigFunction.sign(privateKey, "base64");
+
+	return signatureBase64;
+}
+
+/**
+ * JWT is
+ *
+ * {Base64url encoded header}.{Base64url encoded claim set}.{Base64url encoded signature}
+ *
+ * The signature includes
+ * {Base64url encoded header}.{Base64url encoded claim set}
+ */
+function makeJWT({ clientEmail, scope, privateKey }) {
+	/**
+	 * JWT HEADER
+	 */
+	const jwtHeader = { "alg": "RS256", "typ": "JWT" };
+	const jwtHeaderBase64Encoded = base64Url(jwtHeader);
+
+	/**
+	 * JWT CLAIM SET
+	 */
+	const issuedTime = Math.floor(Date.now() / 1000); // in seconds
+	const expirationTime = issuedTime + (3600 - 10)
+
+	const jwtClaimSet = {
+		"iss": clientEmail,
+		"scope": scope,
+		"aud": "https://oauth2.googleapis.com/token",
+		"exp": expirationTime,
+		"iat": issuedTime
+	};
+
+	const jwtClaimSetBase64Encoded = base64Url(jwtClaimSet);
+
+	/**
+	 * JWT SIGNATURE
+	 */
+	const signatureSource = `${jwtHeaderBase64Encoded}.${jwtClaimSetBase64Encoded}`;
+	const signature = createSignature(signatureSource, privateKey);
+	const signatureBase64Url = fromBase64(signature);
+
+	const jwt = `${jwtHeaderBase64Encoded}.${jwtClaimSetBase64Encoded}.${signatureBase64Url}`;
+
+	return jwt;
 }
 
 /**
@@ -237,7 +323,7 @@ async function generateGoogleChatMessage(output: IProcessOutputData, userId: str
 	const basicMessage: ICognigyBasicMessage = {
 		space: sessionStorage.space,
 		thread: sessionStorage.thread,
-		name: `${sessionId}/messages/${generateGoogleChatMessageId()}`
+		name: `${sessionId}/messages/${generateGoogleChatMessageId()}`,
 	}
 
 	// Check for simple text
@@ -296,32 +382,36 @@ createWebhookTransformer({
 		let text = "";
 		let data = {}
 
-		console.log(JSON.stringify(request.body))
-
 		// Check if Google Chat Message is incoming
-		if (request?.body?.type === "MESSAGE" || request?.body?.type === "CARD_CLICKED") {
+		if (request?.body?.type === "MESSAGE"
+			|| request?.body?.type === "CARD_CLICKED"
+			|| request?.body?.type === "ADDED_TO_SPACE") {
 
 			const googleChatMessage: IGoogleChatMessage = request.body;
+
 
 			// Check if user clicked a button on a card (Quick Reply)
 			if (request.body?.action?.actionMethodName === "postback" && request?.body?.action?.parameters) {
 				text = request.body.action.parameters[0].value;
+			} else if (request.body.type === "ADDED_TO_SPACE") {
+				text = '##welcome##';
 			} else {
 				text = googleChatMessage.message.text;
 			}
 
-			userId = googleChatMessage.user.name;
-			sessionId = googleChatMessage.space.name;
-			data = googleChatMessage
-
-			// Store general mesasge info in session storage
-			let sessionStorage = await getSessionStorage(userId, sessionId);
-			sessionStorage.user = googleChatMessage.user;
-			sessionStorage.space = googleChatMessage.space;
-			sessionStorage.thread = googleChatMessage.message.thread
+			userId = googleChatMessage?.user?.name;
+			sessionId = googleChatMessage?.space?.name;
+			data = googleChatMessage;
 
 			// Log event
 			console.info(`[Google Chat] Received message from ${userId} in session ${sessionId}`);
+		}
+
+		// Directly answer Google Chat for avoiding "Bot did not answer" message
+		if (!response.headersSent) {
+			response.status(200).json({
+				text: ""
+			});
 		}
 
 		return {
@@ -333,17 +423,29 @@ createWebhookTransformer({
 	},
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
-		let sessionStorage = await getSessionStorage(userId, sessionId);
+		const jwt = makeJWT({
+			clientEmail: CLIENT_EMAIL,
+			scope: SCOPE,
+			privateKey: PRIVATE_KEY
+		});
 
-		// Check if Service Account authentication details are configured
-		if (output?.data?.auth) {
-			sessionStorage.auth = output.data.auth;
-		}
+		const oauth2Response = await httpRequest({
+			method: 'POST',
+			uri: 'https://oauth2.googleapis.com/token',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				assertion: jwt,
+				grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer'
+			},
+			json: true
+		});
 
 		// Generate Google Chat message from Cognigy Default message output
 		const cognigyMessage = await generateGoogleChatMessage(output, userId, sessionId);
 
-		if (sessionStorage?.auth?.access_token && cognigyMessage !== null) {
+		if (oauth2Response?.access_token && cognigyMessage !== null) {
 			try {
 				const messageResponse = await httpRequest({
 					uri: `https://chat.googleapis.com/v1/${sessionId}/messages`,
@@ -351,21 +453,24 @@ createWebhookTransformer({
 					headers: {
 						'Content-Type': 'application/json; charset=UTF-8',
 						'Accept': 'application/json',
-						'Authorization': `Bearer ${sessionStorage?.auth?.access_token}`
+						'Authorization': `Bearer ${oauth2Response.access_token}`
 					},
 					body: cognigyMessage,
 					json: true
 				});
 
 				console.info(`[Google Chat] Sent message to user with id ${userId}.`);
-				console.log(`[Google Chat] Message: ${JSON.stringify(messageResponse)}`);
+				console.log(`[Google Chat] Message Response: ${JSON.stringify(messageResponse)}`);
 			} catch (error) {
 				console.error(`[Google Chat] Error: ${error}`);
+				return;
 			}
+		} else {
+			console.error(`[Google Chat] No Access Token provided: ${JSON.stringify(oauth2Response)}`);
+			return;
 		}
 
-		return {
-			text: ""
-		};
+		return;
+
 	}
 })
