@@ -10,7 +10,7 @@ createSocketTransformer({
 
 			try {
 
-				const liveChatSendMessageResponse = await httpRequest({
+				await httpRequest({
 					method: 'POST',
 					uri: `https://api.8x8.com/vcc/${REGION}/chat/v2/tenant/${TENANT_ID}/conversations/${sessionStorage?.conversationId}/messages`,
 					headers: {
@@ -24,8 +24,6 @@ createSocketTransformer({
 					},
 					json: true
 				});
-
-				console.log(JSON.stringify(liveChatSendMessageResponse));
 			} catch (error) {
 				console.error(error);
 			}
@@ -33,18 +31,65 @@ createSocketTransformer({
 			return;
 		}
 
+
+		let transcript = sessionStorage?.transcript || [];
+
+		// Write the live agent message into the sessionStorage for transcript
+		if (payload?.text?.length !== 0) {
+			transcript.push({
+				type: "user",
+				text: payload?.text
+			});
+
+			sessionStorage.transcript = transcript;
+		}
+
 		return {
 			userId: payload.userId,
 			sessionId: payload.sessionId,
 			text: payload.text,
-			data: payload.data
+			data: {
+				...payload.data,
+				transcript: sessionStorage?.transcript
+			}
 		};
 	},
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
 		const sessionStorage = await getSessionStorage(userId, sessionId);
 
-		console.log(JSON.stringify(output))
+		if (sessionStorage) {
+			// Write the bot message into the sessionStorage for transcript
+			if (processedOutput?.text) {
+				let transcript = sessionStorage.transcript || [];
+
+				transcript.push({
+					type: "bot",
+					text: processedOutput?.text?.length !== 0 ? processedOutput?.text : "Unsupported message type"
+				});
+
+				sessionStorage.transcript = transcript;
+			} else {
+				// check if it was a quick reply text
+				let quickReplyText = processedOutput?.data?._cognigy?._webchat?.message?.text;
+				if (quickReplyText) {
+					// get quick reply text
+					let transcript = sessionStorage.transcript || [];
+					transcript.push({
+						type: "bot",
+						text: quickReplyText
+					});
+					// get options of quick replies
+					let quickreplies = processedOutput?.data?._cognigy?._webchat?.message?.quick_replies?.map(qr => qr.title)?.join(',');
+					transcript.push({
+						type: "bot Options:",
+						text: quickreplies
+					});
+					sessionStorage.transcript = transcript;
+				}
+			}
+		}
+
 
 		if (output?.data?.isHandover && output?.data?.conversationId && output?.data?.access_token) {
 			sessionStorage.isHandover = output.data.isHandover;
