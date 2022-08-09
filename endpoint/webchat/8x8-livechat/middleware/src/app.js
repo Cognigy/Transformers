@@ -4,6 +4,9 @@ const axios = require('axios');
 const app = express();
 const port = 8181;
 
+const USERNAME = '';
+const PASSWORD = '';
+
 // Enable JSON Body
 app.use(express.json({ type: () => true }));
 
@@ -20,13 +23,26 @@ app.post('/inject/:region/tenant/:tenantId', async (req, res) => {
 
     try {
 
+        // Authenticate 8x8 requests
+        // Docs: https://developer.8x8.com/contactcenter/reference/createaccesstoken
+        const authenticationResponse = await axios({
+            method: 'post',
+            url: 'https://api.8x8.com/oauth/v2/token',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${new Buffer.from(`${USERNAME}:${PASSWORD}`).toString("base64")}`
+            },
+            data: 'grant_type=client_credentials'
+        });
+
         // Get the conversation details
         const conversationDetailsResponse = await axios({
             method: 'get',
             url: `https://api.8x8.com/vcc/${region}/chat/v2/tenant/${tenantId}/conversations/${body?.conversationId}`,
             headers: {
                 'Accept': 'application/json',
-                'Authorization': `Bearer zZSAmQIn5AYmJ7GvuXRb4Rr2Xvo3`
+                'Authorization': `Bearer ${authenticationResponse?.data?.access_token}`
             }
         });
 
