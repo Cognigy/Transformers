@@ -17,7 +17,7 @@ app.post('/inject/:region/tenant/:tenantId', async (req, res) => {
 
     // Check if the Webhook must be validated by the 8x8 platform for configuration
     // Sent body: {"notificationVersion":"v2.0","eventType":"WEB_HOOK_VERIFY"}
-    if (req?.body?.eventType === 'WEB_HOOK_VERIFY') {
+    if (req.body.eventType === 'WEB_HOOK_VERIFY') {
         res.sendStatus(200);
     }
 
@@ -39,24 +39,24 @@ app.post('/inject/:region/tenant/:tenantId', async (req, res) => {
         // Get the conversation details
         const conversationDetailsResponse = await axios({
             method: 'get',
-            url: `https://api.8x8.com/vcc/${region}/chat/v2/tenant/${tenantId}/conversations/${body?.conversationId}`,
+            url: `https://api.8x8.com/vcc/${region}/chat/v2/tenant/${tenantId}/conversations/${body.conversationId}`,
             headers: {
                 'Accept': 'application/json',
-                'Authorization': `Bearer ${authenticationResponse?.data?.access_token}`
+                'Authorization': `Bearer ${authenticationResponse.data.access_token}`
             }
         });
 
-        const { customer } = conversationDetailsResponse?.data;
+        const { customer } = conversationDetailsResponse.data;
         const { cognigySessionId, cognigyURLToken, cognigyUserId } = customer;
 
         // Check if the agent sent a message or a different event happened
-        if (body?.eventType === 'TEXT') {
+        if (body.eventType === 'TEXT') {
             await axios({
                 method: 'post',
                 url: `https://endpoint-trial.cognigy.ai/notify/${cognigyURLToken}`,
                 data: {
                     userId: cognigyUserId,
-                    text: body?.message,
+                    text: body.message,
                     data: null,
                     sessionId: cognigySessionId
                 }
