@@ -11,6 +11,10 @@
 const CLIENT_ID: string = '';
 const CLIENT_SECRET: string = '';
 
+// Session timeout in seconds, new session gets generated afterwards
+// Disable by setting to 0
+const SESSION_TIMEOUT = 1800;
+
 interface IZoomAuthenticationResponse {
 	access_token: string;
 	token_type: 'bearer' | string,
@@ -474,13 +478,25 @@ createWebhookTransformer({
 			// Extract the payload from request body
 			const { payload } = request.body as IZoomBotNotificationPayload;
 
-			// Assign user and session ID for Cognigy.AI
-			userId = payload?.userId;
-			sessionId = payload?.userId;
-
 			// Store the payload into the session storage to make it available in the output transformer
 			let sessionStorage = await getSessionStorage(userId, sessionId);
 			sessionStorage.payload = payload;
+
+			// Session Management
+			const currentTime = moment(new Date()).unix();
+			if (sessionStorage.timestamp) {
+				const difference = moment(currentTime).diff(moment(sessionStorage.timestamp));
+				//check for timeout if timeout is more than 0
+				if (SESSION_TIMEOUT && (difference > SESSION_TIMEOUT)) {
+					sessionStorage.timestamp = currentTime;
+				}
+			} else {
+				sessionStorage.timestamp = currentTime;
+			}
+			// Assign user and session ID for Cognigy.AI
+			userId = payload?.userId;
+			sessionId = JSON.stringify([payload?.userId, sessionStorage.timestamp]);
+
 
 			// Check if a normal text message was sent by the Zoom user
 			if (request?.body?.event === 'bot_notification') {
@@ -509,8 +525,6 @@ createWebhookTransformer({
 	handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
 
 		const zoomMessage: TZoomMessage = await transformToZoomMessage(output, userId, sessionId);
-
-		console.log(JSON.stringify(zoomMessage))
 
 		try {
 
