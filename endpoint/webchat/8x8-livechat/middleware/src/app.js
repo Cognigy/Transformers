@@ -18,68 +18,73 @@ app.post('/inject/:region/tenant/:tenantId', async (req, res) => {
     // Check if the Webhook must be validated by the 8x8 platform for configuration
     // Sent body: {"notificationVersion":"v2.0","eventType":"WEB_HOOK_VERIFY"}
     if (req.body.eventType === 'WEB_HOOK_VERIFY') {
-        res.sendStatus(200);
-    }
-
-    try {
-
-        // Authenticate 8x8 requests
-        // Docs: https://developer.8x8.com/contactcenter/reference/createaccesstoken
-        const authenticationResponse = await axios({
-            method: 'post',
-            url: 'https://api.8x8.com/oauth/v2/token',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${new Buffer.from(`${USERNAME}:${PASSWORD}`).toString("base64")}`
-            },
-            data: 'grant_type=client_credentials'
-        });
-
-        // Get the conversation details
-        const conversationDetailsResponse = await axios({
-            method: 'get',
-            url: `https://api.8x8.com/vcc/${region}/chat/v2/tenant/${tenantId}/conversations/${body.conversationId}`,
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${authenticationResponse.data.access_token}`
-            }
-        });
-
-        const { customer } = conversationDetailsResponse.data;
-        const { cognigySessionId, cognigyURLToken, cognigyUserId } = customer;
-
-        // Check if the agent sent a message or a different event happened
-        if (body.eventType === 'TEXT') {
-            await axios({
-                method: 'post',
-                url: `https://endpoint-trial.cognigy.ai/notify/${cognigyURLToken}`,
-                data: {
-                    userId: cognigyUserId,
-                    text: body.message,
-                    data: null,
-                    sessionId: cognigySessionId
-                }
-            });
-        } else {
-            await axios({
-                method: 'post',
-                url: `https://endpoint-trial.cognigy.ai/inject/${cognigyURLToken}`,
-                data: {
-                    userId: cognigyUserId,
-                    text: '',
-                    data: body,
-                    sessionId: cognigySessionId
-                }
-            });
-        }
-
         if (!res.headersSent) {
-            res.status(200).send("");
+            return res.sendStatus(200);
         }
-    } catch (error) {
-        res.send(error);
-        console.log(error.message)
+    } else {
+
+
+        try {
+
+            // Authenticate 8x8 requests
+            // Docs: https://developer.8x8.com/contactcenter/reference/createaccesstoken
+            const authenticationResponse = await axios({
+                method: 'post',
+                url: 'https://api.8x8.com/oauth/v2/token',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${new Buffer.from(`${USERNAME}:${PASSWORD}`).toString("base64")}`
+                },
+                data: 'grant_type=client_credentials'
+            });
+
+            // Get the conversation details
+            const conversationDetailsResponse = await axios({
+                method: 'get',
+                url: `https://api.8x8.com/vcc/${region}/chat/v2/tenant/${tenantId}/conversations/${body.conversationId}`,
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${authenticationResponse.data.access_token}`
+                }
+            });
+
+            const { customer } = conversationDetailsResponse.data;
+            const { cognigySessionId, cognigyURLToken, cognigyUserId } = customer;
+
+            // Check if the agent sent a message or a different event happened
+            if (body.eventType === 'TEXT') {
+                await axios({
+                    method: 'post',
+                    url: `https://endpoint-trial.cognigy.ai/notify/${cognigyURLToken}`,
+                    data: {
+                        userId: cognigyUserId,
+                        text: body.message,
+                        data: null,
+                        sessionId: cognigySessionId,
+                        source: "agent"
+                    }
+                });
+            } else {
+                await axios({
+                    method: 'post',
+                    url: `https://endpoint-trial.cognigy.ai/inject/${cognigyURLToken}`,
+                    data: {
+                        userId: cognigyUserId,
+                        text: '',
+                        data: body,
+                        sessionId: cognigySessionId
+                    }
+                });
+            }
+
+            if (!res.headersSent) {
+                res.status(200).send("");
+            }
+        } catch (error) {
+            res.send(error);
+            console.log(error.message)
+        }
     }
 });
 
