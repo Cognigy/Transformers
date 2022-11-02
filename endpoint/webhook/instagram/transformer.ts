@@ -1,23 +1,28 @@
 /**
- * WhatsApp Endpoint
+ * Instagram Endpoint
  * 
  * Type: Webhook
- * Documentation: https://developers.facebook.com/docs/whatsapp/getting-started/signing-up
+ * Documentation: https://developers.facebook.com/docs/messenger-platform/instagram/get-started
  */
+
 // This token can be defined by you and is used in order verify this Webhook in the Facebook Developer portal.
 // If a new Webhook is created in Facebook Developer for WhatsApp, the Endpoint URL and this VERIFY_TOKEN must be provided.
 // Example: Cognigy123
 const VERIFY_TOKEN: string = "122585841285845ddasdsad";
-// This is the phone number associated with the WhatsApp Business Account that can be found in the WhatsApp Manager platform
+
+// This is the page_id associated with your Instagram account in your Facebook business account. 
 // Example: 104510793210612
 const PAGE_ID: string = "";
-// This token is used in order to authenticate the outgoing message to WhatsApp within the handleOutput() Transformer
-// It can be found in the "First Steps" section of "WhatsApp" inside of the Facebook Developer portal
+
+// This token is used in order to authenticate the outgoing message to Instagram within the handleOutput() Transformer
+// Instructions on how to create a key can be found here: https://developers.facebook.com/docs/messenger-platform/instagram/get-started in the section "5. Get the page access token"
 // Example: EAAEYl54FMww...
 const ACCESS_TOKEN: string = "";
+
 //session timeout in seconds, new session gets generated afterwards
 //disable by setting to 0
-const SESSION_TIMEOUT = 60
+const SESSION_TIMEOUT = 120
+
 interface IinstagramMessageBasis {
     recipient: {
         id: string
@@ -28,16 +33,6 @@ interface IInstagramTextMessage extends IinstagramMessageBasis {
         text: string;
     },
     access_token: string;
-}
-interface IInstagramLocationMessage extends IinstagramMessageBasis {
-    location: {
-        longitude: number;
-        latitude: number;
-        name: string;
-        address: string
-    },
-    access_token: string;
-    type: 'location'
 }
 interface IInstagramQuickReplyButton {
     content_type: 'text';
@@ -108,66 +103,20 @@ interface IInstagramTemplateMessage extends IinstagramMessageBasis {
         }
     }
 }
-interface IInstagramContactAddress {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-    country_code: string;
-    type: 'WORK' | 'HOME';
+interface IInstagramDataMessage extends IinstagramMessageBasis {
+    recipient: {
+        id: string
+    },
+    message: any
 }
-interface IInstagramContactEmail {
-    email: string;
-    type: 'WORK' | 'HOME';
-}
-interface IInstagramContactName {
-    formatted_name: string;
-    first_name: string;
-    last_name: string;
-    middle_name: string;
-    suffix: string;
-    prefix: string;
-    type: 'contacts'
-}
-interface IInstagramContactOrg {
-    company: string;
-    department: string;
-    title: string;
-    type: 'contacts';
-}
-interface IInstagramContactPhone {
-    phone: string;
-    type: 'WORK' | 'HOME';
-    wa_id?: string;
-}
-interface IInstagramContactURL {
-    url: string;
-    type: 'WORK' | 'HOME'
-}
-interface IInstagramContact {
-    addresses: IInstagramContactAddress[];
-    birthday: string;
-    emails: IInstagramContactEmail[];
-    name: IInstagramContactName;
-    org: IInstagramContactOrg;
-    phones: IInstagramContactPhone[];
-    urls: IInstagramContactURL[];
-    type: 'contacts';
-}
-interface IInstagramContactsMessage extends IinstagramMessageBasis {
-    contacts: IInstagramContact[];
-    type: 'contacts';
-    access_token: string;
-}
-type IinstagramMessage = IInstagramTextMessage | IInstagramLocationMessage | IInstagramQuickReplyMessage | IInstagramImageMessage | IInstagramVideoMessage | IInstagramAudioMessage | IInstagramContactsMessage | IInstagramTemplateMessage;
-interface IInstagramMediaDownloadResponse {
+type IinstagramMessage = IInstagramTextMessage | IInstagramQuickReplyMessage | IInstagramImageMessage | IInstagramVideoMessage | IInstagramAudioMessage | IInstagramTemplateMessage | IInstagramDataMessage;
+/* interface IInstagramMediaDownloadResponse {
     url: string;
     mime_type: string;
     sha256: string;
     file_size: number;
     id: string;
-}
+}*/
 interface IDefaultQuickReply {
     title: string;
     payload: string;
@@ -184,14 +133,14 @@ interface IDefaultGalleryButton {
     type: 'postback' | 'web_url'
 }
 
-type IInstagramMessageType = 'text' | 'comment' | 'reaction';
+type IInstagramMessageType = 'text' | 'comment' | 'reaction' | 'video' | 'image' | 'audio' | 'share' | 'inline' | 'galleryPostback' | 'quickReplyPostback' | 'echo' | 'unsupportedFormat' | 'thelastoption';
 
 /**
  * Downloads media content based on the ID that WhatsApp responds to Cognigy.AI
  * @param {string} `mediaId` The ID of the sent media
  * @return {IWhatsAppMediaDownloadResponse} The download URL, mime_type, file_size, and id
  */
-const downloadInstagramMediaByID = async (mediaId: string): Promise<IInstagramMediaDownloadResponse> => {
+/*const downloadInstagramMediaByID = async (mediaId: string): Promise<IInstagramMediaDownloadResponse> => {
     try {
         // Download the media content that was sent by the user. For example, an image
         return await httpRequest({
@@ -207,7 +156,7 @@ const downloadInstagramMediaByID = async (mediaId: string): Promise<IInstagramMe
     } catch (error) {
         return null;
     }
-}
+}*/
 const createInstagramQuickReplyButtons = (quickReplies: IDefaultQuickReply[]): IInstagramQuickReplyButton[] => {
     let InstagramQuickReplies: IInstagramQuickReplyButton[] = [];
     for (let quickReply of quickReplies) {
@@ -329,8 +278,10 @@ const transformToinstagramMessage = (output: IProcessOutputData, userId: string)
         }
     }
     // Check for video message
-    if (output?.data?._cognigy?._default?._video?.type === 'video') {
-        const { videoUrl } = output?.data?._cognigy?._default?._video;
+    if (output?.data?.type === 'video') {
+        const videoUrl = output?.data?._data?._cognigy?._default?._video?.videoUrl;
+        console.log(videoUrl)
+
         return {
             recipient: {
                 id: userId
@@ -339,7 +290,9 @@ const transformToinstagramMessage = (output: IProcessOutputData, userId: string)
             message: {
                 attachment: {
                     type: 'video',
-                    payload: { url: videoUrl }
+                    payload: {
+                        url: videoUrl
+                    }
                 }
             }
         }
@@ -362,36 +315,19 @@ const transformToinstagramMessage = (output: IProcessOutputData, userId: string)
             }
         }
     }
-    // Check for location message
-    else if (output?.data?.location) {
-        const { longitude, latitude, name, address } = output.data.location;
+    // Check for data message
+    if (output?.data?.type === 'data') {
+        const data = output.data.message
         return {
             recipient: {
                 id: userId
             },
             access_token: ACCESS_TOKEN,
-            type: 'location',
-            location: {
-                longitude,
-                latitude,
-                name,
-                address
-            }
-        }
-    }
-    // Check for contacts message
-    else if (output?.data?.contacts) {
-        const { contacts } = output?.data;
-        return {
-            recipient: {
-                id: userId
-            },
-            access_token: ACCESS_TOKEN,
-            type: 'contacts',
-            contacts
+            message: data
         }
     }
 }
+
 createWebhookTransformer({
     handleInput: async ({ endpoint, request, response }) => {
 
@@ -399,12 +335,13 @@ createWebhookTransformer({
         console.info(`[Instagram] Received message from user: ${JSON.stringify(request.body)}`);
 
         try {
-
             let userId = '';
             let sessionId = '';
             let text = '';
             let data = {};
 
+
+            const currentTime = moment(new Date()).unix()
 
             /**
              * Verify the webhook connection initially
@@ -434,18 +371,61 @@ createWebhookTransformer({
              */
             let instagramMessageType: IInstagramMessageType;
 
-            if (request?.body?.entry[0]?.messaging[0]?.message?.text) {
-                instagramMessageType = 'text';
-            } else if (request?.body?.entry[0]?.messaging[0]?.reaction?.reaction) {
-                instagramMessageType = 'reaction';
-            } else if (request?.body?.entry[0]?.changes[0]?.field === 'comments') {
-                instagramMessageType = 'comment';
+            let postbackText;
+
+            if (request?.body?.entry?.length) {
+                if (request?.body?.entry[0]?.messaging?.length) {
+                    if (request?.body?.entry[0]?.messaging[0]?.message?.is_echo === true) {
+                        instagramMessageType = 'echo'
+                    } else if (request?.body?.entry[0]?.messaging[0]?.message?.mid &&
+                        request?.body?.entry[0]?.messaging[0]?.message?.text == undefined &&
+                        request?.body?.entry[0]?.messaging[0]?.message?.quick_reply == undefined &&
+                        request?.body?.entry[0]?.messaging[0]?.postback == undefined &&
+                        request?.body?.entry[0]?.messaging[0]?.message?.attachments == undefined) {
+                        instagramMessageType = 'inline'
+                    } else if (request?.body?.entry[0]?.messaging[0]?.message?.is_unsupported === true) {
+                        instagramMessageType = 'unsupportedFormat'
+                    } else if (request?.body?.entry[0]?.messaging[0]?.message?.quick_reply) {
+                        instagramMessageType = 'quickReplyPostback'
+                        postbackText = request?.body?.entry[0]?.messaging[0]?.message?.quick_reply?.payload
+                    } else if (request?.body?.entry[0]?.messaging[0]?.message?.text) {
+                        instagramMessageType = 'text';
+                    } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments?.length) {
+                        if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'video') {
+                            instagramMessageType = 'video'
+                        } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'image') {
+                            instagramMessageType = 'image'
+                        } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'audio') {
+                            instagramMessageType = 'audio'
+                        } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'share') {
+                            instagramMessageType = 'share'
+                        } else {
+                            return null;
+                        }
+                    } else if (request?.body?.entry[0]?.messaging[0]?.postback) {
+                        instagramMessageType = 'galleryPostback'
+                        postbackText = request?.body?.entry[0]?.messaging[0]?.postback?.payload
+                    } else if (request?.body?.entry[0]?.messaging[0]?.reaction?.reaction) {
+                        instagramMessageType = 'reaction';
+                    } else {
+                        return null;
+                    }
+                } else if (request?.body?.entry[0]?.changes?.length) {
+                    if (request?.body?.entry[0]?.changes[0]?.field === 'comments') {
+                        instagramMessageType = 'comment'
+                    } else {
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
             } else {
                 return null;
             }
 
+            console.info({ "instagramMessageType": instagramMessageType })
             // // initialize session storage
-            const sessionStorage = await getSessionStorage(userId, sessionId)
+
             // sessionStorage.instagramMessageType = instagramMessageType;
             // if (request?.body?.entry[0]?.changes[0]?.value?.id) {
             //     sessionStorage.commentId = request?.body?.entry[0]?.changes[0]?.value?.id;
@@ -456,15 +436,40 @@ createWebhookTransformer({
              * based on the incoming Instagram message
              */
 
+            let clearUserId;
+            let clearSessionId;
+            let rawSessionStorage;
+
             switch (instagramMessageType) {
                 case 'text':
-                    userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;;
+                    userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;
                     sessionId = request?.body?.entry[0]?.messaging[0]?.recipient?.id;
                     data = {
                         ...request?.body,
                         type: 'text'
                     };
                     text = request?.body?.entry[0]?.messaging[0]?.message?.text;
+
+                    //initialize clear values and create rawSessionStorage
+                    clearUserId = userId
+                    clearSessionId = sessionId
+                    rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
+                    if (rawSessionStorage.timestamp) {
+                        const difference = moment(currentTime).diff(moment(rawSessionStorage.timestamp))
+                        //check for timeout if timeout is more than 0
+                        if (SESSION_TIMEOUT && (difference > SESSION_TIMEOUT)) {
+                            //update timestamp -> will lead to new Flow session
+                            rawSessionStorage.timestamp = currentTime
+                        }
+                    } else {
+                        //intialize timestamp
+                        rawSessionStorage.timestamp = currentTime
+                    }
+
+                    userId = clearUserId
+                    //by appending the timestamp to the sessionId we create a new Flow session
+                    sessionId = JSON.stringify([clearSessionId, rawSessionStorage.timestamp])
 
                     return {
                         userId,
@@ -473,6 +478,85 @@ createWebhookTransformer({
                         data
                     }
 
+                case 'video':
+                case 'audio':
+                case 'image':
+                case 'share':
+                case 'inline':
+                case 'unsupportedFormat':
+                    userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;
+                    sessionId = request?.body?.entry[0]?.messaging[0]?.recipient?.id;
+                    data = {
+                        ...request?.body,
+                        type: instagramMessageType
+                    };
+                    text = null
+
+                    //initialize clear values and create rawSessionStorage
+                    clearUserId = userId
+                    clearSessionId = sessionId
+                    rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
+                    if (rawSessionStorage.timestamp) {
+                        const difference = moment(currentTime).diff(moment(rawSessionStorage.timestamp))
+                        //check for timeout if timeout is more than 0
+                        if (SESSION_TIMEOUT && (difference > SESSION_TIMEOUT)) {
+                            //update timestamp -> will lead to new Flow session
+                            rawSessionStorage.timestamp = currentTime
+                        }
+                    } else {
+                        //intialize timestamp
+                        rawSessionStorage.timestamp = currentTime
+                    }
+
+                    userId = clearUserId
+                    //by appending the timestamp to the sessionId we create a new Flow session
+                    sessionId = JSON.stringify([clearSessionId, rawSessionStorage.timestamp])
+
+                    return {
+                        userId,
+                        sessionId,
+                        text,
+                        data
+                    }
+
+                case 'galleryPostback':
+                case 'quickReplyPostback':
+                    userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;
+                    sessionId = request?.body?.entry[0]?.messaging[0]?.recipient?.id;
+                    data = {
+                        ...request?.body,
+                        type: instagramMessageType
+                    };
+                    text = postbackText
+
+                    //initialize clear values and create rawSessionStorage
+                    clearUserId = userId
+                    clearSessionId = sessionId
+                    rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
+                    if (rawSessionStorage.timestamp) {
+                        const difference = moment(currentTime).diff(moment(rawSessionStorage.timestamp))
+                        //check for timeout if timeout is more than 0
+                        if (SESSION_TIMEOUT && (difference > SESSION_TIMEOUT)) {
+                            //update timestamp -> will lead to new Flow session
+                            rawSessionStorage.timestamp = currentTime
+                        }
+                    } else {
+                        //intialize timestamp
+                        rawSessionStorage.timestamp = currentTime
+                    }
+
+                    userId = clearUserId
+                    //by appending the timestamp to the sessionId we create a new Flow session
+                    sessionId = JSON.stringify([clearSessionId, rawSessionStorage.timestamp])
+
+                    return {
+                        userId,
+                        sessionId,
+                        text,
+                        data
+                    }
                 case 'reaction':
                     userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;;
                     sessionId = request?.body?.entry[0]?.messaging[0]?.recipient?.id;
@@ -482,6 +566,15 @@ createWebhookTransformer({
                     };
                     text = request?.body?.entry[0]?.messaging[0]?.reaction?.text;
 
+                    clearUserId = userId
+                    clearSessionId = sessionId
+                    rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
+                    userId = clearUserId
+                    //by appending the timestamp to the sessionId we create a new Flow session
+                    sessionId = JSON.stringify([clearSessionId, rawSessionStorage.timestamp])
+
+
                     return {
                         userId,
                         sessionId,
@@ -489,42 +582,60 @@ createWebhookTransformer({
                         data
                     }
                 case 'comment':
-                    userId = request?.body?.entry[0]?.changes[0]?.value?.from?.id;
-                    sessionId = request?.body?.entry[0]?.changes[0]?.value?.id;
-                    data = {
-                        ...request?.body,
-                        type: 'comment'
-                    };
-                    text = request?.body?.entry[0]?.changes[0]?.value?.text
+                    if (request?.body?.entry[0]?.id === request?.body?.entry[0]?.changes[0]?.value?.from?.id)
+                        return null;
+                    else {
+                        userId = request?.body?.entry[0]?.changes[0]?.value?.from?.id;
+                        sessionId = request?.body?.entry[0]?.changes[0]?.value?.media?.id;
+                        data = {
+                            ...request?.body,
+                            type: 'comment'
+                        };
+                        text = request?.body?.entry[0]?.changes[0]?.value?.text
 
-                    return {
-                        userId,
-                        sessionId,
-                        text,
-                        data
+                        clearUserId = userId
+                        clearSessionId = sessionId
+                        rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+                        rawSessionStorage.commentId = request?.body?.entry[0]?.changes[0]?.value?.id;
+                        rawSessionStorage.instagramMessageType = 'comment'
+                        return {
+                            userId,
+                            sessionId,
+                            text,
+                            data
+                        }
                     }
+
+
+                case 'echo':
                 default:
                     return null;
-
             }
+            //initialize clear values and create rawSessionStorage
+
         } catch (error) {
             // Log the error message
             console.error(`[Instagram] An error occured in Input Transformer: ${error}`);
             // Stop the execution
             return null;
         }
+
     },
     handleOutput: async ({ processedOutput, output, endpoint, userId, sessionId }) => {
         try {
 
             const sessionStorage = await getSessionStorage(userId, sessionId);
 
-            /**
-             * Check if there is a comment that must be replied to
-             */
-            let commentId = sessionStorage.commentId;
+            // Transform the Cognigy.AI output into a valid Instagram message object
+            console.log({ "rawCognigyOutput": output })
 
-            if (sessionStorage.instagramMessageType === 'comment') {
+            let instagramMessage: IinstagramMessage = transformToinstagramMessage(output, userId);
+            console.log(`[Instagram] Sending message to user: ${JSON.stringify(instagramMessage)}`);
+            // Send Cognigy.AI message to Instagram
+            // Check if there is a comment that must be replied to
+            if (sessionStorage.commentId) {
+                let commentId = sessionStorage.commentId
+                console.info({ 'commentIdStorage': commentId })
                 await httpRequest({
                     uri: `https://graph.facebook.com/v15.0/${commentId}/replies`,
                     method: "POST",
@@ -534,23 +645,13 @@ createWebhookTransformer({
                     },
                     useQuerystring: true
                 })
-            }
-
-            // Transform the Cognigy.AI output into a valid Instagram message object
-            let instagramMessage: IinstagramMessage = transformToinstagramMessage(output, userId);
-
-            console.log(`[Instagram] Sending message to user: ${JSON.stringify(instagramMessage)}`);
-
-            // Send Cognigy.AI message to Instagram
-            // If message is quickreplies
-            if (output?.data?._cognigy?._default?._quickReplies !== null && output?.data?._cognigy?._default?._quickReplies?.type === "quick_replies" || (output?.data?._cognigy?._default?._gallery?.items)) {
+                // If message is quickreplies
+            } else if (output?.data?._cognigy?._default?._quickReplies !== null && output?.data?._cognigy?._default?._quickReplies?.type === "quick_replies" || (output?.data?._cognigy?._default?._gallery?.items)) {
                 await httpRequest({
                     uri: `https://graph.facebook.com/v15.0/${PAGE_ID}/messages`,
                     method: "POST",
                     headers: {
                         'Content-Type': 'application/json',
-                        // The Authorization 
-                        // 'Authorization': `Bearer ${BEARER_TOKEN}`
                     },
                     body: instagramMessage,
                     json: true,
@@ -564,8 +665,6 @@ createWebhookTransformer({
                     method: "POST",
                     headers: {
                         'Content-Type': 'application/json',
-                        // The Authorization 
-                        // 'Authorization': `Bearer ${BEARER_TOKEN}`
                     },
                     qs: instagramMessage,
                 });
@@ -573,8 +672,6 @@ createWebhookTransformer({
         } catch (error) {
             // Log error message
             console.error(`[Instagram] An error occured in Output Transformer: ${error?.message}`);
-            let instagramMessage: IinstagramMessage = transformToinstagramMessage(output, userId);
-            // console.log({'instagramMessage': instagramMessage})
         }
         return null;
     },
@@ -611,6 +708,7 @@ createWebhookTransformer({
          * every Endpoint, and the example above needs to be adjusted
          * accordingly.
          */
+
         const userId = "";
         const sessionId = "";
         const text = "";
