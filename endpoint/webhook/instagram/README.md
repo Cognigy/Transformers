@@ -21,6 +21,11 @@ It allows Cognigy to both answer direct messages as well as respond to comments 
 4. Find your the page ID for your Instagram webpage and add it to the `PAGE_ID` field.  
 5. Create an access token in the developer portal and add it to the `ACCESS_TOKEN` field
 
+## Messages from user
+The user is able to send multiple types of messages including images, audio and video. What type of message you receive from the user can be seen in the `input.data.type` field of the `input` object.
+
+For most media file types a download link for the media can be found in the `input.entry[0].messaging[0].message.attachments[0].payload` field.
+
 ## Message Types
 
 ### Text
@@ -52,8 +57,7 @@ Use the **Text with Quick Replies** to add quick type messages to the chat. The 
 <img src="./docs/InstagramReactionReply.png" width="50%">
 
 You can also see if the user reacted to your message and respond accordingly. 
-
-
+Reactions can be recognized by the `reaction` value in the `input.data.type` field. 
 
 ### Posts/Data messages
 
