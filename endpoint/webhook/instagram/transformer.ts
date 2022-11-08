@@ -133,7 +133,7 @@ interface IDefaultGalleryButton {
     type: 'postback' | 'web_url'
 }
 
-type IInstagramMessageType = 'text' | 'comment' | 'reaction' | 'video' | 'image' | 'audio' | 'share' | 'inline' | 'galleryPostback' | 'quickReplyPostback' | 'echo' | 'unsupportedFormat' | 'thelastoption';
+type IInstagramMessageType = 'text' | 'comment' | 'reaction' | 'video' | 'image' | 'audio' | 'share' | 'inline' | 'galleryPostback' | 'quickReplyPostback' | 'echo' | 'unsupportedFormat' | 'story_mention';
 
 /**
  * Downloads media content based on the ID that WhatsApp responds to Cognigy.AI
@@ -399,6 +399,8 @@ createWebhookTransformer({
                             instagramMessageType = 'audio'
                         } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'share') {
                             instagramMessageType = 'share'
+                        }  else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'story_mention') {
+                            instagramMessageType = 'story_mention'
                         } else {
                             return null;
                         }

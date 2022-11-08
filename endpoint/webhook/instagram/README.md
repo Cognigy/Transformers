@@ -1,5 +1,7 @@
 # Instagram
-This Enpoint Transformer provides a native integration with Instagram.
+This Enpoint Transformer provides a native integration with Instagram. Please read this document for detailed information on the what needs to be considered when creating an Instagram endpoint. 
+https://developers.facebook.com/docs/messenger-platform/instagram/
+
 
 It allows Cognigy to both answer direct messages as well as respond to comments on posts. 
 
