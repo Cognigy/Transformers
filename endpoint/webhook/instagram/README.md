@@ -1,9 +1,14 @@
 # Instagram
-This Enpoint Transformer provides a native integration with Instagram. Please read this document for detailed information on the what needs to be considered when creating an Instagram endpoint. 
+This Endpoint Transformer provides a native integration with Instagram.
+
+It allows Cognigy to both answer direct messages as well as respond to comments on posts.
+
+Please read this document for detailed information on the what needs to be considered when creating an Instagram endpoint. 
 https://developers.facebook.com/docs/messenger-platform/instagram/
 
-
-It allows Cognigy to both answer direct messages as well as respond to comments on posts. 
+After completing an agent with this endpoint please look at this document for information in regards to what needs to be considered to have the bot be approved for publication by Instagram/Meta:
+https://developers.facebook.com/docs/messenger-platform/instagram/app-review/apps-for-your-own-business
+ 
 
 ## Message Types
 
