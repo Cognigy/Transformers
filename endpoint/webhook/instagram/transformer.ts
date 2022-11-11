@@ -109,7 +109,14 @@ interface IInstagramDataMessage extends IinstagramMessageBasis {
     },
     message: any
 }
-type IinstagramMessage = IInstagramTextMessage | IInstagramQuickReplyMessage | IInstagramImageMessage | IInstagramVideoMessage | IInstagramAudioMessage | IInstagramTemplateMessage | IInstagramDataMessage;
+interface IInstagramReactionMessage extends IinstagramMessageBasis {
+    recipient: {
+        id: string
+    },
+    payload: any,
+    sender_action: 'react' | 'unreact'
+}
+type IinstagramMessage = IInstagramTextMessage | IInstagramQuickReplyMessage | IInstagramImageMessage | IInstagramVideoMessage | IInstagramAudioMessage | IInstagramTemplateMessage | IInstagramReactionMessage | IInstagramDataMessage;
 /* interface IInstagramMediaDownloadResponse {
     url: string;
     mime_type: string;
@@ -315,6 +322,20 @@ const transformToinstagramMessage = (output: IProcessOutputData, userId: string)
             }
         }
     }
+    // Check for reaction message - Does not Seem to quite work. Probably needs additional access.
+    if (output?.data?.type === 'reaction') {
+        const payload = output?.data?.payload
+        const sender_action = output?.data?.sender_action
+        return {
+            recipient: {
+                id: userId
+            },
+            access_token: ACCESS_TOKEN,
+            sender_action: sender_action,
+            payload: JSON.stringify(payload)
+        }
+    }
+
     // Check for data message
     if (output?.data?.type === 'data') {
         const data = output.data.message
@@ -399,7 +420,7 @@ createWebhookTransformer({
                             instagramMessageType = 'audio'
                         } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'share') {
                             instagramMessageType = 'share'
-                        }  else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'story_mention') {
+                        } else if (request?.body?.entry[0]?.messaging[0]?.message?.attachments[0]?.type === 'story_mention') {
                             instagramMessageType = 'story_mention'
                         } else {
                             return null;
@@ -485,6 +506,7 @@ createWebhookTransformer({
                 case 'image':
                 case 'share':
                 case 'inline':
+                case 'story_mention':
                 case 'unsupportedFormat':
                     userId = request?.body?.entry[0]?.messaging[0]?.sender?.id;
                     sessionId = request?.body?.entry[0]?.messaging[0]?.recipient?.id;
