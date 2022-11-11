@@ -18,6 +18,7 @@ https://developers.facebook.com/docs/messenger-platform/instagram/app-review/app
 - Video
 - Audio
 - Galleries
+- Reactions
 - Comment replies
 
 ## How to Setup
@@ -87,6 +88,39 @@ You can also send other types of [media supported by Instagram](https://develope
 ```
 
 **IMPORTANT** you must add the `{"type": "data"}` key value pair to the data unless it won't be recognized. 
+
+### Reactions
+
+<img src="./docs/InstagramBotReaction.png" width="50%">
+
+It is also possible to react to a user's message by giving it a "like". To do this you could add the following to the data field of your say node:
+
+```json
+{
+    "type": "reaction",
+    "sender_action": "react",
+    "payload": {
+        "message_id": "{{input.data.entry[0].messaging[0].message.mid}}",
+        "reaction": "love"
+    }
+}
+```
+
+To unreact to a message you can also add the following to the data:
+
+```json
+{
+    "type": "reaction",
+    "sender_action": "unreact",
+    "payload": {
+        "message_id": "{{input.data.entry[0].messaging[0].message.mid}}"
+    }
+}
+```
+
+The field `input.data.entry[0].messaging[0].message.mid` is where you can find the value with the message ID for the last message send by the user. 
+
+**IMPORTANT** you must add the `{"type": "reaction"}` key value pair to the data unless it won't be recognized. 
 
 ### Comment responses
 
