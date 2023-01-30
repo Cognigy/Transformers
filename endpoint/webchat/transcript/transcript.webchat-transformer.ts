@@ -80,23 +80,27 @@ createSocketTransformer({
 <html>
 <head>
 <style>
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+}
 pre {
   overflow-x: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 table {
-  font-family: arial, sans-serif;
   border-collapse: collapse;
-  width: 100%;
+  padding: 10px;
+  margin: 20px;
+  border: 1px solid #ccc;
+  background-color: #fff;
 }
-
 td, th {
   border: 1px solid #dddddd;
   text-align: left;
   padding: 8px;
 }
-
 tr:nth-child(even) {
   background-color: #dddddd;
 }
