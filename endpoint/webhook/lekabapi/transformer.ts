@@ -433,10 +433,7 @@ createWebhookTransformer({
 		// Delete Quick Replies for the next time
 		delete processedSessionStorage.quickReplies;
 		delete processedSessionStorage.quickReplyCurrentNumber;
-		console.log(clearFromChannel);
-		console.log(clearUserId);
 		let lekabapimessage: TLekabApiContent[] = convertWebchatContentToLekabApi(output, clearSessionId, processedSessionStorage);	
-		console.log(lekabapimessage);
 		if (!lekabapimessage.length) {
 			console.error("Missing LekabApi compatible channel output!");
 			return
