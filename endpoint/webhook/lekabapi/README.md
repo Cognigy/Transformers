@@ -37,7 +37,6 @@ The connection with LEKAB is established using a apikey. Therefore, the followin
 
 Basically every message type which is supported by the specifide channel can be send. Depending on the channel to which messages is send there are seven available message types
 
-- []
 - [text_message](#text)
 - [media_message](#media-attachments)
 - [choice_message](#choice)
