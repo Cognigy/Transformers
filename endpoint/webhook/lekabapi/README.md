@@ -87,4 +87,4 @@ All output types, except "Adaptive Card" and "List" of the Say Node is supported
 
 ### Question Node (Including Optional Question)
 
-All Question Types except Date is supported. All output types, except "Adaptive Card" and "List" of the Say Node is supported if the channel (WhatsApp, Messenger etc.) supports them. 
+All Question Types except Date is supported. All output types, except "Adaptive Card" and "List" of the Question Node is supported if the channel (WhatsApp, Messenger etc.) supports them. 
