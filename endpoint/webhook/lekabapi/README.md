@@ -1,15 +1,7 @@
 # LEKAB Rich API
-
-<img src="./docs/Lekab-WhatsApp.svg" width="10%">
-<img src="./docs/Lekab-Wechat.svg" width="10%">
-<img src="./docs/Lekab-viber.svg" width="10%">
-<img src="./docs/Lekab-rich-sms-02_1.svg" width="10%">
-<img src="./docs/Lekab-rcs.svg" width="10%">
-<img src="./docs/Lekab-messenger.svg" width="10%">
-<img src="./docs/Lekab-Line.svg" width="10%">
-<img src="./docs/Lekab-Kakao-Talk.svg" width="10%">
-<img src="./docs/Lekab-instagram.svg" width="10%">
-<img src="./docs/Lekab-Apple-business-chat.svg" width="10%">
+WhatsApp             |  WeChat | Viber | Rich SMS |  RCS | Messenger | Line | KakaoTalk | Instagram | Apple Business Chat 
+:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
+![](./docs/Lekab-WhatsApp.svg)  |  ![](./docs/Lekab-Wechat.svg)  |  ![](./docs/Lekab-viber.svg)  |  ![](./docs/Lekab-rich-sms-02_1.svg)  |  ![](./docs/Lekab-rcs.svg)|  ![](./docs/Lekab-messenger.svg)|  ![](./docs/Lekab-Line.svg)|  ![](./docs/Lekab-Kakao-Talk.svg)|  ![](./docs/Lekab-instagram.svg)|  ![](./docs/Lekab-Apple-business-chat.svg)
 
 
 This transformer provides Lekab API function. Lekab API is multichannel platrform from where you can control all your channels in same place. WhatsApp, Messenger, RCS etc. The transformer converts the Default content of your Cognigy Flow nodes to valid rich content by using [LEKAB](https://www.lekab.com/en/rich-channels).
@@ -49,13 +41,9 @@ Basically every message type which is supported by the specifide channel can be 
 
 Use the **Text** type in the default tab of the SAY Node. 
 
-<img src="./docs/text.png" width="50%">
-
 ### Media Attachments
 
 One can use the default tab of the SAY Node and send, **images**, **videos** or **audio files**. An additonal description can be added by using the **Fallback Text**.
-
-<img src="./docs/image.png" width="50%">
 
 ### Choice
  message a.k.a buttons and clickables
@@ -84,10 +72,6 @@ Use the **Text** type of the SAY Node and define a data only message (No Text), 
 		}
 }
 ```
-
-This will be displayed like this:
-
-<img src="./docs/location.png" width="50%">
 
 ### Template
 
