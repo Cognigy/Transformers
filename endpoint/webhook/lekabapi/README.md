@@ -4,7 +4,7 @@ WhatsApp             |  WeChat | Viber | Rich SMS |  RCS | Messenger | Line | Ka
 ![](./docs/Lekab-WhatsApp.svg)  |  ![](./docs/Lekab-Wechat.svg)  |  ![](./docs/Lekab-viber.svg)  |  ![](./docs/Lekab-rich-sms-02_1.svg)  |  ![](./docs/Lekab-rcs.svg)|  ![](./docs/Lekab-messenger.svg)|  ![](./docs/Lekab-Line.svg)|  ![](./docs/Lekab-Kakao-Talk.svg)|  ![](./docs/Lekab-instagram.svg)|  ![](./docs/Lekab-Apple-business-chat.svg)
 
 
-This transformer provides Lekab API function. Lekab API is multichannel platrform from where you can control all your channels in same place. WhatsApp, Messenger, RCS etc. The transformer converts the Default content of your Cognigy Flow nodes to valid rich content by using [LEKAB](https://www.lekab.com/en/rich-channels).
+This transformer provides Lekab API function. Lekab API is multichannel platform where you can control all your channels in same place. WhatsApp, Messenger, RCS etc. The transformer converts the default content of your Cognigy flow nodes to valid rich content by using [LEKAB](https://www.lekab.com/en/rich-channels).
 
 # Connection
 
@@ -27,7 +27,7 @@ The connection with LEKAB is established using a apikey. Therefore, the followin
 
 ## Provided Message Types
 
-Basically every message type which is supported by the specifide channel can be send. Depending on the channel to which messages is send there are seven available message types
+Basically every message type which is supported the specified channel can be send. Depending on the channel to which messages is send there are seven available message types
 
 - [text_message](#text)
 - [media_message](#media-attachments)
@@ -46,8 +46,8 @@ Use the **Text** type in the default tab of the SAY Node.
 One can use the default tab of the SAY Node and send, **images**, **videos** or **audio files**. An additonal description can be added by using the **Fallback Text**.
 
 ### Choice
- message a.k.a buttons and clickables
-Tähän jotain choice viesteistä
+
+Message buttons
 
 ### Card
 
@@ -55,7 +55,7 @@ Use the **Gallery** type of the SAY or Question Node and add ONE card to it. All
 
 ### Carousel
 
-Use the **Gallery** type of the SAY or Question Node and add multiple cards and it's called carousel (make sure that the endpoint u are using support carousel. For example WA does not). All Button Types are supported.
+Use the **Gallery** type of the SAY or Question Node and add multiple cards and it's called carousel (check the channel specific restriction). All Button Types are supported.
 
 ### Location
 
@@ -75,14 +75,13 @@ Use the **Text** type of the SAY Node and define a data only message (No Text), 
 
 ### Template
 
-WhatsApp and KakaoTalk template messages arenät supported at the moment but the feature is coming.
+WhatsApp and KakaoTalk template messages aren't supported at the moment but the feature is coming.
 
 ## Supported Message Types And Features in Lekab API Transformer
 
 ### Say Node
 
 All output types, except "Adaptive Card" and "List" of the Say Node is supported if the channel (WhatsApp, Messenger etc.) supports them. 
-
 
 ### Condition: Cognigy Script is not supported, leave them empty.
 
