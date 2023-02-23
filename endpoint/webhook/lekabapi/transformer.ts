@@ -438,7 +438,8 @@ createWebhookTransformer({
 			console.error("Missing LekabApi compatible channel output!");
 			return
 		}
-			await httpRequest({
+		let result: any;
+		let options = {
 					uri: LEKAB_API_URL,
 					method: "POST",
 					headers: {
@@ -459,7 +460,13 @@ createWebhookTransformer({
 						
 					},
 					json: true
-				});
+			};
+			try{
+				result  = await httpRequest(options);
+				console.log("HTTP result: " + JSON.stringify(result));
+			} catch (err){
+				console.error(err.message);
+			};
 			return null;
 		},
 
