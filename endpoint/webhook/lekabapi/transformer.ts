@@ -120,19 +120,8 @@ const convertWebchatContentToLekabApi = (output, sessionId: string, sessionStora
 		// create list for lekabapimessage content
 		let lekabApiContents: TLekabApiContent[] = [];
 
-		// check if default text was sent
-		if (output.text && !output.data?._cognigy?._default && !output.data.type) {
-
-			// send default text
-			lekabApiContents.push({
-				"text_message":{
-					"text":output.text
-				}
-			});
-		}
-
 		// check for location message
-		else if (output.data.type==="location") {
+		if (output.data.type==="location") {
 
 			//const { longitude, latitude, name, address } = output.data.location;
 
@@ -315,6 +304,16 @@ const convertWebchatContentToLekabApi = (output, sessionId: string, sessionStora
 						});
 						}
 					}
+		}
+		// check if default text was sent
+		else if (output.text && !output.data?._cognigy?._default && !output.data.type) {
+
+			// send default text
+			lekabApiContents.push({
+				"text_message":{
+					"text":output.text
+				}
+			});
 		}
 	// return the list of lekabapimessage messages
 	return lekabApiContents;
