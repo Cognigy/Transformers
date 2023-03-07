@@ -12,4 +12,4 @@ The ``cognitiveServiceKey`` will need to be replaced with the key from your Cogn
 
 The sentiment of each user statement will then be added to the data object of the user input.
 
-<img src="./docs/MicrosoftSentimentInDataObject.png" width="100%">
+<img src="./docs/MicrosoftSentimentInDataObject.png" width="50%">
