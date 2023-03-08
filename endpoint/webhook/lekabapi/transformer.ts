@@ -426,9 +426,7 @@ createWebhookTransformer({
 		const processedSessionStorage = await getSessionStorage(userId, sessionId);
 		const clearFromChannel = processedSessionStorage.clearFromChannel
 		const clearUserId = processedSessionStorage.clearUserId
-		const clearSessionId = processedSessionStorage.clearSessionId
-		//if you need to access the original rawSessionStorage you now can
-		const rawSessionStorage = await getSessionStorage(clearUserId, clearSessionId);
+
 		// Delete Quick Replies for the next time
 		delete processedSessionStorage.quickReplies;
 		delete processedSessionStorage.quickReplyCurrentNumber;
