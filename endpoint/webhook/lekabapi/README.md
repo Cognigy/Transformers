@@ -9,7 +9,7 @@ This transformer provides LEKAB API functionality. LEKAB API is a multichannel p
 
 # Connection
 
-To use the LEKAB Rich API and, therefore, this transformer, one needs to sign up for [LEKAB](https://www.lekab.com/en/contact).
+To use the LEKAB Rich API and, therefore, this transformer, one needs to sign up for [LEKAB](https://app.lekab.com/wp/signup).
 
 ## Endpoint Configuration
 
