@@ -65,7 +65,7 @@ Use the **Text** type of the SAY Node and define a data-only message (No Text), 
 ```json
 {
     "type": "location",
-    "title": "Teknobulevardi 3-5, Vantaa",
+    "title": "Teknobulevardi 3-5, Vantaa",
     "label": "Lekab Communication Systems",
     "coordinates": {
         "latitude": 60.30565815164177,
