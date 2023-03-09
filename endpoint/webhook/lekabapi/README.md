@@ -78,7 +78,7 @@ Use the **Text** type of the SAY Node and define a data-only message (No Text), 
 
 >Note: WhatsApp and KakaoTalk template messages aren't supported.
 
-## Supported Message Types and Features in Lekab API Transformer
+## Supported Message Types and Features in LEKAB API Transformer
 
 ### Say Node
 
