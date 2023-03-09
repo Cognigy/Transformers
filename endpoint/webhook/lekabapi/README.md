@@ -1,8 +1,8 @@
 # LEKAB Rich API
 
-WhatsApp             |  WeChat | Viber | Rich SMS |  RCS | Messenger | Line | KakaoTalk | Instagram | Apple Business Chat
-:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-![](./docs/Lekab-WhatsApp.svg)  |  ![](./docs/Lekab-Wechat.svg)  |  ![](./docs/Lekab-viber.svg)  |  ![](./docs/Lekab-rich-sms-02_1.svg)  |  ![](./docs/Lekab-rcs.svg)|  ![](./docs/Lekab-messenger.svg)|  ![](./docs/Lekab-Line.svg)|  ![](./docs/Lekab-Kakao-Talk.svg)|  ![](./docs/Lekab-instagram.svg)|  ![](./docs/Lekab-Apple-business-chat.svg)
+| WhatsApp | WeChat  | Viber  | Rich SMS  |  RCS | Messenger | Line  | KakaoTalk | Instagram | Apple Business Chat       |
+|:--------:|:-------:|:------:|:---------:|:----:|:---------:|:-----:|:---------:|:---------:|:-------------------------:|
+|![](./docs/Lekab-WhatsApp.svg)|![](./docs/Lekab-Wechat.svg)|![](./docs/Lekab-viber.svg)|![](./docs/Lekab-rich-sms-02_1.svg)|![](./docs/Lekab-rcs.svg)|![](./docs/Lekab-messenger.svg)|![](./docs/Lekab-Line.svg)|![](./docs/Lekab-Kakao-Talk.svg)|![](./docs/Lekab-instagram.svg)|![](./docs/Lekab-Apple-business-chat.svg)|
 
 
 This transformer provides LEKAB API functionality. LEKAB API is a multichannel platform where you can control all your channels in one place, including WhatsApp, Messenger, RCS, and more. The transformer converts the default content of your Cognigy flow nodes to valid rich content by using [LEKAB](https://www.lekab.com/en/rich-channels).
@@ -65,7 +65,7 @@ Use the **Text** type of the SAY Node and define a data-only message (No Text), 
 ```json
 {
     "type": "location",
-    "title": "Teknobulevardi 3-5, Vantaa",
+    "title": "Teknobulevardi 3-5, Vantaa",
     "label": "Lekab Communication Systems",
     "coordinates": {
         "latitude": 60.30565815164177,
@@ -78,7 +78,7 @@ Use the **Text** type of the SAY Node and define a data-only message (No Text), 
 
 >Note: WhatsApp and KakaoTalk template messages aren't supported.
 
-## Supported Message Types and Features in Lekab API Transformer
+## Supported Message Types and Features in LEKAB API Transformer
 
 ### Say Node
 
