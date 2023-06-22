@@ -3,6 +3,13 @@
 ## Setup
 
 ```javascript
+// update these to match the project/organisation of your endpoint
+const PROJECT_ID = "project-id";
+const ORGANISATION_ID = "organisation-id";
+
+// update this for your environment
+const AAW_BASE_URL = "https://agent-assist-trial.cognigy.ai";
+
 /**
  * Insert "withAAWRedirect" code here
  */
@@ -15,6 +22,8 @@ createWebhookTransformer({
   handleInput: withAAWRedirect(
     withForwardToCC(() => {
       // your regular "input transformer"
+      // taking care of extracting userId, sessionId, text and data
+      // from the request
     })
   ),
 });

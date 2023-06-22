@@ -2,11 +2,6 @@ const PROJECT_ID = "project-id";
 const ORGANISATION_ID = "organisation-id";
 const AAW_BASE_URL = "https://agent-assist-dev.cognigy.ai";
 
-const getSession = (userId: string, sessionId: string) =>
-  getSessionStorage(userId, sessionId);
-const getForeignSession = (foreignSessionId: string) =>
-  getSessionStorage(foreignSessionId, foreignSessionId);
-
 /**
  * this input transformer wrapper forwards incoming messages to a contact center
  *
@@ -22,7 +17,7 @@ const getForeignSession = (foreignSessionId: string) =>
  *  // your regular input transformer
  * });
  */
-const forwardInputToContactCenter =
+const withForwardToCC =
   (next: IBaseTransformer["handleInput"]): IBaseTransformer["handleInput"] =>
   async (params) => {
     ////////////////////////////////////////////////////////////
@@ -33,7 +28,7 @@ const forwardInputToContactCenter =
     ////////////////////////////////////////////////////////////
     // ASSURE FOREIGN SESSION ID / INITIALIZE CONVERSATION IN CC
     ////////////////////////////////////////////////////////////
-    const session = await getSession(input.userId, input.sessionId);
+    const session = await getSessionStorage(input.userId, input.sessionId);
 
     if (!session.foreignSessionId) {
       console.log(`[FORWARD] initializing conversation in contact center"`);
@@ -106,14 +101,6 @@ const forwardInputToContactCenter =
   };
 
 /**
- * converts a flat object of strings/booleans/numbers into a query string
- */
-const toQueryString = (obj: any) =>
-  Object.entries(obj)
-    .map(([key, value]) => `${key}=${value}`)
-    .join("&");
-
-/**
  * this transformer wrapper function adds the capability to embed an agent assist workspace
  * to the input transformer, using only a foreign session id as a parameter.
  *
@@ -146,13 +133,16 @@ const withAAWRedirect =
 
     if (!aawRedirectId) {
       const input = await next(params);
-      const session = await getSession(input.userId, input.sessionId);
+      const session = await getSessionStorage(input.userId, input.sessionId);
 
       ////////////////////////////////////////////////////////////
       // ASSURE FOREIGN SESSION PARAMETER MAPPING
       ////////////////////////////////////////////////////////////
 
-      const foreignSession = await getForeignSession(session.foreignSessionId);
+      const foreignSession = await getSessionStorage(
+        session.foreignSessionId,
+        session.foreignSessionId
+      );
 
       if (!foreignSession.userId) {
         console.log(
@@ -162,7 +152,6 @@ const withAAWRedirect =
         foreignSession.sessionId = input.sessionId;
       }
 
-      console.log("[REDIRECT] RETURN INPUT");
       return input;
     }
 
@@ -172,7 +161,10 @@ const withAAWRedirect =
 
     const aawSessionParams = await (async () => {
       // read userId/sessionId previously stored in session storage at foreignSessionId
-      const foreignSessionStorage = await getForeignSession(aawRedirectId);
+      const foreignSessionStorage = await getSessionStorage(
+        aawRedirectId,
+        aawRedirectId
+      );
       const { userId, sessionId } = foreignSessionStorage;
 
       if (!userId || !sessionId) return null;
@@ -196,6 +188,11 @@ const withAAWRedirect =
       console.log("REDIRECT] session not found");
       return null;
     }
+
+    const toQueryString = (obj: any) =>
+      Object.entries(obj)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("&");
 
     const aawRedirectUrl = `${AAW_BASE_URL}/?${toQueryString(
       aawSessionParams
@@ -221,7 +218,7 @@ createWebhookTransformer({
    * which has been extracted from the request body.
    */
   handleInput: withAAWRedirect(
-    forwardInputToContactCenter(async ({ endpoint, request, response }) => {
+    withForwardToCC(async ({ endpoint, request, response }) => {
       const { userId, sessionId, text, data } = request.body;
 
       return {
