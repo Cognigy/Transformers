@@ -24,6 +24,7 @@ In order to integrate this into your Endpoint, you need to add the following cod
 - add the environment variables (project id, organisation id, aaw base url)
 - add the "withAAWRedirect" and "withForwardToCC" function code
 - wrap your "handleInput" transformer function into "withAAWRedirect" and "withForwardToCC" (as shown below)
+- uncomment and adapt the "create conversation" and "forward message" request sections to the API of your contact center integration
 
 ```javascript
 // update these to match the project/organisation of your endpoint
